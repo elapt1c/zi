@@ -1,6 +1,6 @@
 /*
  * Fetcher: receives (ip,port) from SYN scan, does HTTP GET,
- * decompresses, finds <script> tags, fetches JS, runs greyhat scanner.
+ * finds <script> tags, fetches JS, runs greyhat scanner.
  */
 #include "fetcher.h"
 #include "verifier.h"
@@ -49,7 +49,7 @@ static int nthreads = 0;
 
 static unsigned char *grab(const char *u, size_t *len) {
     char c[2048];
-    snprintf(c,sizeof(c),"/usr/bin/curl -s -L -m 6 --connect-timeout 2 -m 4 -A 'ZorpInvader/1.0' \"%s\" 2>/dev/null", u);
+    snprintf(c,sizeof(c),"/usr/bin/curl -s -L -m 4 --connect-timeout 2 -A 'ZorpInvader/1.0' \"%s\" 2>/dev/null", u);
     FILE *f = popen(c,"r");
     if (!f) return NULL;
     size_t cap=131072, tot=0;
@@ -82,13 +82,11 @@ static char *resolve_url(const char *ip, unsigned port, const char *src) {
 }
 
 static void process_html(const char *ip, unsigned port, const unsigned char *html, size_t len) {
-    if (!html || len<16) return;
-    if (html[len-1]!=0) return;
+    if (!html || len<16 || html[len-1]!=0) return;
     s_pages++;
     __sync_add_and_fetch(&total_sites_checked,1);
     __sync_add_and_fetch(&total_html_sites,1);
     last_html_time=(uint64_t)time(0);
-    /* Count as HTML if it has script tags or looks like HTML */
     if (strcasestr((const char*)html,"<script") || strcasestr((const char*)html,"<html") ||
         strcasestr((const char*)html,"<body") || strcasestr((const char*)html,"<head"))
         s_html++;
@@ -113,30 +111,20 @@ static void process_html(const char *ip, unsigned port, const unsigned char *htm
         p+=7;
         const char *end=strchr(p,'>');
         if (!end) break;
-        /* Find src="..." within this <script> tag */
-        const char *s=p;
-        while (s<end) {
-            /* Look for src with word boundary */
-            const char *found = strcasestr(s, "src");
-            if (!found || found>=end) break;
-            /* Require word boundary before src: space, =, <, or start */
-            if (found>p && !isspace((unsigned char)found[-1]) && found[-1]!='=' && found[-1]!='<')
-                { s=found+1; continue; }
-            s=found+3;
-            /* Skip optional whitespace */
-            while (s<end && (*s==' '||*s=='\t')) s++;
-            /* Require = */
-            if (s<end && *s=='=') s++;
-            /* Skip optional whitespace */
-            while (s<end && (*s==' '||*s=='\t')) s++;
-            if (s<end && (*s=='"'||*s=='\'')) {
-                char q=*s++;
-                const char *ce=memchr(s,q,end-s);
+        const char *src=strcasestr(p,"src");
+        if (src && src<end) {
+            src+=3;
+            while (src<end && (*src==' '||*src=='\t')) src++;
+            if (src<end && *src=='=') src++;
+            while (src<end && (*src==' '||*src=='\t')) src++;
+            if (src<end && (*src=='"'||*src=='\'')) {
+                char q=*src++;
+                const char *ce=memchr(src,q,end-src);
                 if (ce) {
-                    int sl=(int)(ce-s);
+                    int sl=(int)(ce-src);
                     char sb[512];
                     int cl=sl<511?sl:511;
-                    memcpy(sb,s,cl); sb[cl]=0;
+                    memcpy(sb,src,cl); sb[cl]=0;
                     char *url=resolve_url(ip,port,sb);
                     if (!is_cdn_url(url)) {
                         size_t jl=0;
@@ -168,21 +156,22 @@ static void *worker(void *arg) {
         char u[256]; snprintf(u,sizeof(u),"http://%s:%u/",j.ip,j.port);
         size_t l=0;
         unsigned char *h=grab(u,&l);
-        if (!h) { /* fetch failed silently */ }
-        else if (l>0) { process_html(j.ip,j.port,h,l); free(h); }
-        else { free(h); }
+        if (h && l>0) { process_html(j.ip,j.port,h,l); free(h); }
+        else if (h) free(h);
     }
     return NULL;
 }
 
 void fetcher_submit(const char *ip, unsigned port) {
+    static uint64_t _submits=0; _submits++;
+    if (_submits%1000==1) fprintf(stderr,"[fetcher] submit #%lu %s:%u q=%d\n",_submits,ip,port,qc);
     struct Job j;
     strncpy(j.ip,ip,63); j.ip[63]=0;
     j.port=port;
     pthread_mutex_lock(&mtx);
     if (qc>=QSIZE) { qh=(qh+1)%QSIZE; qc--; }
     q[qt]=j; qt=(qt+1)%QSIZE; qc++;
-    if (qc>=256) pthread_cond_broadcast(&cnd); else pthread_cond_signal(&cnd);
+    if (qc>256) pthread_cond_broadcast(&cnd); else pthread_cond_signal(&cnd);
     pthread_mutex_unlock(&mtx);
 }
 
