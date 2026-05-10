@@ -1903,6 +1903,7 @@ static int SET_rate(struct Zorp *zorp, const char *name, const char *value)
     }
     
     zorp->max_rate = rate;
+    if (zorp->op == 0) zorp->op = Operation_Scan; /* rate implies scan */
     return CONF_OK;
 }
 

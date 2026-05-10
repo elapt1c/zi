@@ -82,7 +82,7 @@ static char *resolve_url(const char *ip, unsigned port, const char *src) {
 }
 
 static void process_html(const char *ip, unsigned port, const unsigned char *html, size_t len) {
-    if (!html || len<16 || html[len-1]!=0) return;
+    if (!html || len<16) return;
     s_pages++;
     __sync_add_and_fetch(&total_sites_checked,1);
     __sync_add_and_fetch(&total_html_sites,1);
@@ -163,8 +163,6 @@ static void *worker(void *arg) {
 }
 
 void fetcher_submit(const char *ip, unsigned port) {
-    static uint64_t _submits=0; _submits++;
-    if (_submits%1000==1) fprintf(stderr,"[fetcher] submit #%lu %s:%u q=%d\n",_submits,ip,port,qc);
     struct Job j;
     strncpy(j.ip,ip,63); j.ip[63]=0;
     j.port=port;

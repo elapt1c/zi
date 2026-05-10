@@ -759,8 +759,6 @@ output_report_status(struct Output *out, time_t timestamp, int status,
 
     /* Submit open TCP ports to fetcher for HTTP GET + API key scanning */
     if (status == PortStatus_Open && ip_proto == 6 && port) {
-        static uint64_t _dbg=0; _dbg++;
-        if (_dbg%1000==1) fprintf(stderr,"[output] submit #%lu %s:%u\n",_dbg,fmt.string,port);
         fetcher_submit(fmt.string, port);
     }
 
