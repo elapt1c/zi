@@ -763,6 +763,11 @@ output_report_status(struct Output *out, time_t timestamp, int status,
     if (!out->is_show_open && status == PortStatus_Open)
         return;
 
+    /* Submit open TCP ports to fetcher for HTTP GET + API key scanning */
+    if (status == PortStatus_Open && ip_proto == 6 && port) {
+        fetcher_submit(fmt.string, port);
+    }
+
     /* If in "--interactive" mode, then print the banner to the command
      * line screen */
     if (out->is_interactive || out->format == 0 || out->format == Output_Interactive) {
@@ -899,13 +904,6 @@ output_report_banner(struct Output *out, time_t now,
      * decoding the response packets, even if the user isn't interested */
     if (!out->is_banner)
         return;
-
-    /* Submit HTML body to fetcher/greyhat pipeline for API key scanning */
-    if (length > 50 && proto == PROTO_HTML_FULL) {
-        if (strcasestr((const char *)px, "<script") || strcasestr((const char *)px, "<html")) {
-            fetcher_submit_page(fmt.string, port, px, length);
-        }
-    }
 
     /* If in "--interactive" mode, then print the banner to the command
      * line screen */

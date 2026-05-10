@@ -70,16 +70,16 @@ zorp_usage(void)
     printf("usage: zorpinvader [options]\n");
     printf("\n");
     printf("examples:\n");
-    printf("    zorpinvader --rate 5000 --banners\n");
+    printf("    zorpinvader --rate 5000\n");
     printf("        scan the Internet for API keys at 5k packets/sec\n");
     printf("\n");
     printf("    zorpinvader --echo\n");
     printf("        print current configuration to stdout\n");
     printf("\n");
-    printf("    zorpinvader --rate 10000 --banners --banners.html\n");
+    printf("    zorpinvader --rate 10000\n");
     printf("        capture HTML bodies for deeper API key inspection\n");
     printf("\n");
-    printf("    zorpinvader --open --banners --readscan <filename> -oX <savefile>\n");
+    printf("    zorpinvader --open --readscan <filename> -oX <savefile>\n");
     printf("        read binary scan results in <filename> and save them as xml in <savefile>\n");
     exit(1);
 }
@@ -232,8 +232,8 @@ print_nmap_help(void)
 "  -h: Print this help summary page.\n"
 "EXAMPLES:\n"
 "  zorp -v -sS 192.168.0.0/16 10.0.0.0/8 -p 80\n"
-"  zorp 23.0.0.0/0 -p80 --banners -output-format binary --output-filename internet.scan\n"
-"  zorp --open --banners --readscan internet.scan -oG internet_scan.grepable\n"
+"  zorp 23.0.0.0/0 -p80 -output-format binary --output-filename internet.scan\n"
+"  zorp --open --readscan internet.scan -oG internet_scan.grepable\n"
 "SEE (https://github.com/robertdavidgraham/zorp) FOR MORE HELP\n"
 "\n");
 }
@@ -1112,7 +1112,6 @@ static int SET_banners(struct Zorp *zorp, const char *name, const char *value)
        return 0;
     }
     zorp->is_banners = parseBoolean(value);
-    if (zorp->is_banners) zorp->is_capture_html = 1; /* auto-enable HTML capture for key scanning */
     return CONF_OK;
 }
 
@@ -3117,10 +3116,9 @@ zorp_help()
 "then verifies them against live endpoints.\n"
 "\n"
 "Quick start:\n"
-"    zorpinvader --rate 5000 --banners\n"
+"    zorpinvader --rate 5000\n"
 "\n"
 "This auto-detects your network interface and begins scanning with\n"
-"hardcoded default targets. The --banners flag is required — it enables\n"
 "banner capture (and auto-enables HTML body capture, since keys often\n"
 "live in <script> tags).\n"
 "\n"

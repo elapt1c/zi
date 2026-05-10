@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "zorpinvader.h"
 
+/* Stats getters */
 uint64_t fetcher_pages_fetched(void);
 uint64_t fetcher_scripts_fetched(void);
 uint64_t fetcher_gzip_bodies(void);
@@ -22,19 +23,23 @@ uint64_t fetcher_script_dnsfail(void);
 uint64_t fetcher_script_noslash(void);
 uint64_t fetcher_script_fetched(void);
 
+/* Globals */
 extern uint64_t total_keys_found;
 extern uint64_t total_potential_keys;
 extern uint64_t total_sites_checked;
 extern uint64_t total_html_sites;
 extern uint64_t last_html_time;
-
 extern char discovery_log[10][64];
 extern int discovery_log_ptr;
 
+/* API */
 void fetcher_init(void);
-void fetcher_submit_page(const char *ip, unsigned port, const unsigned char *html, size_t length);
+void fetcher_shutdown(void);
+void fetcher_submit(const char *ip, unsigned port);
+
+/* Greyhat */
 void greyhat_init(void);
 void *greyhat_thread(void *arg);
-void log_banner(const char *ip, unsigned port, unsigned proto, const char *banner);
+void greyhat_scan(ipaddress ip, const unsigned char *px, unsigned length);
 
 #endif

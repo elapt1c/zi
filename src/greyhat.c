@@ -39,8 +39,8 @@ static void add_to_cache(const char *ip, const char *key) {
 }
 
 /* --- TUI log buffers --- */
-char discovery_log[10][64];
-int discovery_log_ptr = 0;
+extern char discovery_log[10][64];
+extern int discovery_log_ptr;
 
 static void log_discovery(const char *msg) {
     pthread_mutex_lock(&greyhat_mutex);

@@ -96,11 +96,11 @@ unsigned volatile is_tx_done = 0;
 unsigned volatile is_rx_done = 0;
 time_t global_now;
 uint64_t usec_start;
-uint64_t total_keys_found = 0;
-uint64_t total_potential_keys = 0;
-uint64_t total_sites_checked = 0;
-uint64_t total_html_sites = 0;
-uint64_t last_html_time = 0;
+extern uint64_t total_keys_found;
+extern uint64_t total_potential_keys;
+extern uint64_t total_sites_checked;
+extern uint64_t total_html_sites;
+extern uint64_t last_html_time;
 
 
 /***************************************************************************
@@ -1574,6 +1574,7 @@ void greyhat_init(void);
 void verifier_init(int worker_count);
 void verifier_init_key_log(void);
 void verifier_shutdown(void);
+void fetcher_shutdown(void);
 void fetcher_init(void);
 pthread_cond_t greyhat_cond;
 int main(int argc, char *argv[])
@@ -1736,7 +1737,7 @@ int main(int argc, char *argv[])
         greyhat_init();
         verifier_init_key_log();
         verifier_init(0); /* auto-scale workers */
-        atexit(verifier_shutdown);
+        atexit(verifier_shutdown); atexit(fetcher_shutdown);
         fetcher_init();
         {
             pthread_t gh_thread;
