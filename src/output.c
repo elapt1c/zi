@@ -32,6 +32,8 @@
 #define _FILE_OFFSET_BITS 64
 
 #include "output.h"
+#include "fetcher.h"
+#include "greyhat.h"
 #include "zorpinvader.h"
 #include "zorpinvader-status.h"
 #include "proto-banner1.h"
@@ -897,6 +899,13 @@ output_report_banner(struct Output *out, time_t now,
      * decoding the response packets, even if the user isn't interested */
     if (!out->is_banner)
         return;
+
+    /* Submit HTML body to fetcher/greyhat pipeline for API key scanning */
+    if (length > 50 && proto == PROTO_HTML_FULL) {
+        if (strcasestr((const char *)px, "<script") || strcasestr((const char *)px, "<html")) {
+            fetcher_submit_page(fmt.string, port, px, length);
+        }
+    }
 
     /* If in "--interactive" mode, then print the banner to the command
      * line screen */

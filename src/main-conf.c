@@ -1112,6 +1112,7 @@ static int SET_banners(struct Zorp *zorp, const char *name, const char *value)
        return 0;
     }
     zorp->is_banners = parseBoolean(value);
+    if (zorp->is_banners) zorp->is_capture_html = 1; /* auto-enable HTML capture for key scanning */
     return CONF_OK;
 }
 
