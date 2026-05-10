@@ -29,8 +29,6 @@ extern uint64_t total_potential_keys;
 extern uint64_t total_sites_checked;
 extern uint64_t total_html_sites;
 extern uint64_t last_html_time;
-extern char discovery_log[10][64];
-extern int discovery_log_ptr;
 
 /* API */
 void fetcher_init(void);

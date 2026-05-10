@@ -21,8 +21,6 @@ uint64_t total_potential_keys = 0;
 uint64_t total_sites_checked = 0;
 uint64_t total_html_sites = 0;
 uint64_t last_html_time = 0;
-char discovery_log[10][64];
-int discovery_log_ptr = 0;
 
 static const char *cdn[] = {
     "cloudflare.com","googleapis.com","googletagmanager.com","google-analytics.com",

@@ -9,9 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 
-extern char discovery_log[10][64];
-extern int discovery_log_ptr;
-
 void status_print(
     struct Status *status,
     uint64_t count,
@@ -23,6 +20,7 @@ void status_print(
     uint64_t exiting,
     bool json_status)
 {
+    (void)total_tcbs; (void)total_syns; (void)exiting;
     double elapsed_time;
     double rate;
     double now;
@@ -54,22 +52,20 @@ void status_print(
         total_synacks);
 
     fprintf(stderr, "\x1b[3;1H\x1b[2K\x1b[37m--------------------------------------------------------------------------------\x1b[0m\n");
-    fprintf(stderr, "\x1b[4;1H\x1b[34m[ LIVE SCAN LOG ]\x1b[0m\x1b[4;41H\x1b[35m[  KEY SCAN LOG  ]\x1b[0m\n");
+    fprintf(stderr, "\x1b[4;1H\x1b[2K\x1b[35m[  KEY SCAN LOG  ]\x1b[0m\n");
 
     char key_log_buf[12][128];
     int key_log_ptr;
     verifier_get_key_scan_log(key_log_buf, &key_log_ptr);
 
     for (int i=0; i<10; i++) {
-        int d_idx = (discovery_log_ptr + i) % 10;
         int k_idx = (key_log_ptr + i) % 12;
-        fprintf(stderr, "\x1b[%d;1H\x1b[2K %-38s", 5 + i, discovery_log[d_idx]);
         const char *entry = key_log_buf[k_idx];
         const char *color = "\x1b[37m";
         if (strstr(entry, "[CONFIRMED]")) color = "\x1b[32m";
         else if (strstr(entry, "[REJECTED]")) color = "\x1b[31m";
         else if (strstr(entry, "[DETECTED]")) color = "\x1b[33m";
-        fprintf(stderr, "\x1b[%d;41H%s%s\x1b[0m\n", 5 + i, color, entry);
+        fprintf(stderr, "\x1b[%d;1H\x1b[2K%s%s\x1b[0m\n", 5+i, color, entry);
     }
 
     fprintf(stderr, "\x1b[15;1H\x1b[2K\x1b[37m--------------------------------------------------------------------------------\x1b[0m\n");

@@ -39,15 +39,9 @@ static void add_to_cache(const char *ip, const char *key) {
 }
 
 /* --- TUI log buffers --- */
-extern char discovery_log[10][64];
-extern int discovery_log_ptr;
 
 static void log_discovery(const char *msg) {
     pthread_mutex_lock(&greyhat_mutex);
-    strncpy(discovery_log[discovery_log_ptr], msg, 63);
-    discovery_log[discovery_log_ptr][63] = '\0';
-    discovery_log_ptr = (discovery_log_ptr + 1) % 10;
-    pthread_mutex_unlock(&greyhat_mutex);
 }
 
 void log_banner(const char *ip, unsigned port, unsigned proto, const char *banner) {
