@@ -57,64 +57,129 @@ struct KeyPattern {
     const char *provider, *category;
 };
 static const struct KeyPattern key_patterns[] = {
-    {"AKIA", 20, 20, "AWS Access Key ID", "aws"},
-    {"ASIA", 20, 20, "AWS Temporary Access Key", "aws"},
-    {"ABIA", 20, 20, "AWS IAM Access Key", "aws"},
-    {"ACCA", 20, 20, "AWS Access Key (legacy)", "aws"},
-    {"sk-proj-", 32, 60, "OpenAI Project Key", "openai"},
-    {"sk-", 20, 60, "OpenAI API Key", "openai"},
-    {"LTAI", 16, 40, "Alibaba Cloud Access Key", "alibaba"},
-    {"AIza", 30, 50, "Google API Key", "google"},
-    {"ghp_", 36, 42, "GitHub Personal Access Token", "github"},
-    {"gho_", 36, 42, "GitHub OAuth Token", "github"},
-    {"ghu_", 36, 42, "GitHub User-to-Server Token", "github"},
-    {"ghs_", 36, 42, "GitHub Server-to-Server Token", "github"},
-    {"github_pat_", 50, 100, "GitHub Fine-Grained PAT", "github"},
-    {"sk_live_", 30, 50, "Stripe Secret Key (Live)", "stripe"},
-    {"pk_live_", 30, 50, "Stripe Publishable Key (Live)", "stripe"},
-    {"sk_test_", 30, 50, "Stripe Secret Key (Test)", "stripe"},
-    {"rk_live_", 30, 50, "Stripe Restricted Key (Live)", "stripe"},
-    {"rk_test_", 30, 50, "Stripe Restricted Key (Test)", "stripe"},
-    {"xoxb-", 12, 60, "Slack Bot Token", "slack"},
-    {"xoxp-", 12, 60, "Slack User Token", "slack"},
-    {"xoxa-", 12, 60, "Slack App Token", "slack"},
-    {"xoxr-", 12, 60, "Slack Refresh Token", "slack"},
-    {"xoxs-", 12, 60, "Slack Shared Token", "slack"},
-    {"eyJ", 100, 1000, "Azure/Microsoft JWT", "azure"},
-    {"dop_v1_", 60, 80, "DigitalOcean API Token", "digitalocean"},
-    {"doa_", 60, 80, "DigitalOcean OAuth Token", "digitalocean"},
-    {"glpat-", 20, 30, "GitLab Personal Access Token", "gitlab"},
-    {"glft-", 20, 30, "GitLab Feed Token", "gitlab"},
-    {"GR1348941", 20, 30, "GitLab Runner Registration Token", "gitlab"},
-    {"pypi-", 40, 60, "PyPI API Token", "pypi"},
-    {"key-", 30, 40, "Mailgun API Key", "mailgun"},
-    {"SG.", 50, 80, "SendGrid API Key", "sendgrid"},
-    {"vF8", 35, 45, "Cloudflare Global API Key", "cloudflare"},
-    {"HRKU", 30, 40, "Heroku API Key", "heroku"},
-    {"FASTLY_", 30, 50, "Fastly API Token", "fastly"},
-    {"hf_", 20, 40, "Hugging Face Token", "huggingface"},
-    {"sk-ant-", 40, 60, "Anthropic API Key", "anthropic"},
-    {"sk-ant-api", 40, 60, "Anthropic API Key (full)", "anthropic"},
-    {"cohere-", 30, 50, "Cohere API Key", "cohere"},
-    {"gsk_", 40, 60, "Groq API Key", "groq"},
-    {"dapi", 30, 50, "Databricks API Token", "databricks"},
-    {"lin_api_", 40, 60, "Linear API Key", "linear"},
-    {"sntrys_", 50, 80, "Sentry Auth Token", "sentry"},
-    {"vercel_", 20, 40, "Vercel API Token", "vercel"},
-    {"npm_", 30, 50, "NPM Access Token", "npm"},
-    {"rubygems_", 40, 60, "RubyGems API Key", "rubygems"},
-    {"FLWSECK_", 30, 50, "Flutterwave Secret Key", "flutterwave"},
-    {"sq0atp-", 20, 30, "Square Access Token", "square"},
-    {"sq0csp-", 40, 60, "Square Application Secret", "square"},
-    {"A21A", 30, 50, "PayPal Client ID", "paypal"},
-    {"EAAC", 50, 150, "Facebook Access Token", "meta"},
-    {"EAAG", 50, 150, "Facebook Graph API Token", "meta"},
-    {"AAAAAAAA", 50, 100, "Twitter Bearer Token", "twitter"},
-    {"sk-or-", 40, 60, "OpenRouter API Key", "openrouter"},
-    {"pplx-", 30, 50, "Perplexity API Key", "perplexity"},
-    {"mistral-", 30, 50, "Mistral AI API Key", "mistral"},
-    {"r8_", 30, 50, "Replicate API Token", "replicate"},
-    {"elevenlabs-", 30, 50, "ElevenLabs API Key", "elevenlabs"},
+    /* AWS - verifiable via SDK (can't HTTP verify) */
+    {"AKIA", 16, 25, "AWS Access Key ID", "aws"},
+    {"ASIA", 16, 25, "AWS Temporary Access Key", "aws"},
+    /* OpenAI - api.openai.com/v1/models */
+    {"sk-proj-", 16, 100, "OpenAI Project Key", "openai"},
+    {"sk-", 16, 100, "OpenAI API Key", "openai"},
+    /* Google - www.googleapis.com/youtube */
+    {"AIza", 16, 60, "Google API Key", "google"},
+    {"ya29.", 20, 500, "Google OAuth2 Token", "google"},
+    /* GitHub - api.github.com */
+    {"ghp_", 16, 100, "GitHub Personal Access Token", "github"},
+    {"gho_", 16, 100, "GitHub OAuth Token", "github"},
+    {"ghu_", 16, 100, "GitHub User-to-Server Token", "github"},
+    {"ghs_", 16, 100, "GitHub Server-to-Server Token", "github"},
+    {"github_pat_", 16, 200, "GitHub Fine-Grained PAT", "github"},
+    /* Stripe - api.stripe.com/v1/charges */
+    {"sk_live_", 16, 100, "Stripe Secret Key (Live)", "stripe"},
+    {"pk_live_", 16, 100, "Stripe Publishable Key (Live)", "stripe"},
+    {"sk_test_", 16, 100, "Stripe Secret Key (Test)", "stripe"},
+    {"rk_live_", 16, 100, "Stripe Restricted Key (Live)", "stripe"},
+    {"rk_test_", 16, 100, "Stripe Restricted Key (Test)", "stripe"},
+    {"whsec_", 16, 80, "Stripe Webhook Secret", "stripe"},
+    /* Slack - slack.com/api/auth.test */
+    {"xoxb-", 8, 100, "Slack Bot Token", "slack"},
+    {"xoxp-", 8, 100, "Slack User Token", "slack"},
+    {"xoxa-", 8, 100, "Slack App Token", "slack"},
+    {"xoxr-", 8, 100, "Slack Refresh Token", "slack"},
+    {"xoxs-", 8, 100, "Slack Shared Token", "slack"},
+    {"xapp-", 8, 100, "Slack App-Level Token", "slack"},
+    /* Datadog - api.datadoghq.com/api/v1/user */
+    {"dd", 20, 50, "Datadog API Key", "datadog"},
+    /* CircleCI - circleci.com/api/v2/me */
+    {"cci_", 16, 80, "CircleCI API Token", "circleci"},
+    /* HuggingFace - huggingface.co/api/whoami-v2 */
+    {"hf_", 16, 80, "Hugging Face Token", "hf"},
+    /* Discord - discord.com/api/users/@me */
+    {"Bot ", 40, 100, "Discord Bot Token", "discord"},
+    {"MTE", 50, 80, "Discord Bot Token (Base64)", "discord"},
+    /* Twitter/X - api.twitter.com/2/tweets */
+    {"AAAAAAAA", 20, 200, "Twitter Bearer Token", "twitter"},
+    /* Groq - api.groq.com/openai/v1/models */
+    {"gsk_", 16, 80, "Groq API Key", "groq"},
+    /* Anthropic - api.anthropic.com/v1/models */
+    {"sk-ant-", 16, 100, "Anthropic API Key", "anthropic"},
+    {"sk-ant-api", 16, 100, "Anthropic API Key (full)", "anthropic"},
+    /* Twilio - api.twilio.com/2010-04-01/Accounts */
+    {"AC", 20, 40, "Twilio Account SID", "twilio"},
+    {"SK", 20, 50, "Twilio API Key SID", "twilio"},
+    /* DigitalOcean - api.digitalocean.com/v2/account */
+    {"dop_v1_", 30, 150, "DigitalOcean API Token", "digitalocean"},
+    {"doa_", 16, 150, "DigitalOcean OAuth Token", "digitalocean"},
+    /* GitLab - gitlab.com/api/v4/user */
+    {"glpat-", 16, 80, "GitLab Personal Access Token", "gitlab"},
+    {"glft-", 16, 80, "GitLab Feed Token", "gitlab"},
+    {"GR1348941", 16, 80, "GitLab Runner Token", "gitlab"},
+    /* SendGrid - api.sendgrid.com/v3/user */
+    {"SG.", 16, 120, "SendGrid API Key", "sendgrid"},
+    /* Fastly - api.fastly.com/currentuser */
+    {"FASTLY_", 16, 80, "Fastly API Token", "fastly"},
+    /* Cohere - api.cohere.ai/v1/models */
+    {"cohere-", 16, 80, "Cohere API Key", "cohere"},
+    /* DeepSeek - api.deepseek.com/user */
+    {"sk-or-", 16, 100, "DeepSeek API Key", "deepseek"},
+    /* Fireworks - api.fireworks.ai/inference/v1/models */
+    {"fw_", 16, 80, "Fireworks AI API Key", "fireworks"},
+    {"fireworks-", 16, 80, "Fireworks AI Token", "fireworks"},
+    /* Mistral - api.mistral.ai/v1/models */
+    {"mistral-", 16, 80, "Mistral AI API Key", "mistral"},
+    /* Nvidia - integrate.api.nvidia.com/v1/models */
+    {"nvapi-", 16, 80, "Nvidia NIM API Key", "nvidia"},
+    /* Together - api.together.xyz/v1/models */
+    {"together-", 16, 80, "Together AI API Key", "together"},
+    /* Azure/JWT - management.azure.com/subscriptions */
+    {"eyJ", 50, 3000, "JWT Token", "jwt"},
+    {"0.AAA", 16, 200, "Azure AD Token", "azure"},
+    {"EAA", 20, 500, "Microsoft/Google Token", "azure"},
+    /* Alibaba - dashscope.aliyuncs.com/compatible-mode/v1/models */
+    {"LTAI", 12, 60, "Alibaba Cloud Access Key", "alibaba"},
+    {"sk-", 20, 80, "Alibaba DashScope Key", "alibaba"},
+    /* Cloudflare - api.cloudflare.com/client/v4/user/tokens/verify */
+    {"cloudflare_", 16, 80, "Cloudflare API Token", "cloudflare"},
+    /* Heroku - api.heroku.com/account */
+    {"HRKU", 16, 80, "Heroku API Key", "heroku"},
+    /* PyPI - pypi.org/_/api/accounts/me/ */
+    {"pypi-", 16, 100, "PyPI API Token", "pypi"},
+    /* Mailgun - api.mailgun.net/v3/domains */
+    {"key-", 16, 80, "Mailgun API Key", "mailgun"},
+    /* Replicate - api.replicate.com/v1/user */
+    {"r8_", 16, 80, "Replicate API Token", "replicate"},
+    /* ElevenLabs - api.elevenlabs.io/v1/user */
+    {"elevenlabs-", 16, 80, "ElevenLabs API Key", "elevenlabs"},
+    /* Square - connect.squareup.com/v2/locations */
+    {"sq0atp-", 10, 50, "Square Access Token", "square"},
+    {"sq0csp-", 16, 100, "Square Application Secret", "square"},
+    /* Linear - api.linear.app/graphql */
+    {"lin_api_", 16, 80, "Linear API Key", "linear"},
+    /* Sentry - sentry.io/api/0/ */
+    {"sntrys_", 16, 100, "Sentry Auth Token", "sentry"},
+    /* NPM - registry.npmjs.org/-/npm/v1/user */
+    {"npm_", 16, 100, "NPM Access Token", "npm"},
+    /* RubyGems - rubygems.org/api/v1/profiles/me.json */
+    {"rubygems_", 16, 80, "RubyGems API Key", "rubygems"},
+    /* Flutterwave - api.flutterwave.com/v3/balances */
+    {"FLWSECK_", 16, 80, "Flutterwave Secret Key", "flutterwave"},
+    /* AssemblyAI - api.assemblyai.com/v1/user */
+    {"assemblyai_", 16, 80, "AssemblyAI API Key", "assemblyai"},
+    /* Vercel - api.vercel.com/v2/user */
+    {"vercel_", 10, 80, "Vercel API Token", "vercel"},
+    /* OpenRouter - openrouter.ai/api/v1/auth/key */
+    {"sk-or-v1-", 16, 100, "OpenRouter API Key", "openrouter"},
+    /* Voyage - api.voyageai.com/v1/models */
+    {"voyage-", 16, 80, "Voyage AI API Key", "voyage"},
+    /* PayPal - api-m.paypal.com/v1/oauth2/token */
+    {"A21A", 16, 80, "PayPal Client ID", "paypal"},
+    /* Meta/Facebook - graph.facebook.com/me */
+    {"EAAC", 20, 500, "Facebook Access Token", "meta"},
+    {"EAAG", 20, 500, "Facebook Graph API Token", "meta"},
+    {"EAAE", 20, 500, "Facebook Enterprise Token", "meta"},
+    /* Databricks */
+    {"dapi", 16, 100, "Databricks API Token", "databricks"},
+    /* TikTok - open.tiktokapis.com/v2/oauth/token/ */
+    {"act_", 16, 60, "TikTok Advertiser Token", "tiktok"},
+    {"tt_", 16, 80, "TikTok API Token", "tiktok"},
     {NULL, 0, 0, NULL, NULL}
 };
 
@@ -158,7 +223,7 @@ static void extract_and_enqueue(const char *ip_str, const unsigned char *px, uns
     if (strncmp(key, "data:", 5) == 0) return;
     if (strncmp(key, "http://", 7) == 0 || strncmp(key, "https://", 8) == 0) return;
     if (strncmp(key, "-----BEGIN", 10) == 0) return;
-    if (key_len < 8) return;
+    if (key_len < 6) return;
     /* Reject placeholder keys */
     int same_char = 1;
     for (int i = 1; i < key_len; i++) { if (key[i] != key[0]) { same_char = 0; break; } }
@@ -175,12 +240,12 @@ static void extract_and_enqueue(const char *ip_str, const unsigned char *px, uns
     int pass = 0;
     const char *detected_provider = "Unknown", *detected_category = "unknown";
     if (id == ID_LABEL) {
-        if (key_len >= 16) { pass = 1; detected_provider = "Contextual (label match)"; detected_category = "unknown"; }
+        if (key_len >= 8) { pass = 1; detected_provider = "Contextual (label match)"; detected_category = "unknown"; }
     } else {
         for (int i = 0; key_patterns[i].prefix != NULL; i++) {
             if (strncmp(key, key_patterns[i].prefix, strlen(key_patterns[i].prefix)) == 0) {
                 int mn = key_patterns[i].min_len, mx = key_patterns[i].max_len;
-                if (key_len >= mn && (mx == 0 || key_len <= mx)) {
+                if (key_len >= mn) {
                     pass = 1; detected_provider = key_patterns[i].provider; detected_category = key_patterns[i].category;
                     break;
                 }
@@ -245,10 +310,7 @@ void greyhat_init(void) {
     greyhat_smack = smack_create("greyhat", 0);
     for (int i = 0; key_patterns[i].prefix != NULL; i++)
         smack_add_pattern(greyhat_smack, key_patterns[i].prefix, strlen(key_patterns[i].prefix), ID_KEY, 0);
-    const char *labels[] = {"api_key","api-key","apikey","token","secret","password",
-                            "access_key","access-key","secret_key","secret-key",
-                            "api_token","api-token","auth_token","auth-token","bearer","authorization"};
-    for (int i = 0; i < 16; i++) smack_add_pattern(greyhat_smack, labels[i], strlen(labels[i]), ID_LABEL, 1);
+    /* No label-based detection - all keys must match prefix patterns with verifiers */
     smack_compile(greyhat_smack);
 }
 
