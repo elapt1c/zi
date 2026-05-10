@@ -38,6 +38,20 @@ static int is_cdn_url(const char *u) {
     return 0;
 }
 
+/* Safe case-insensitive strstr for non-null-terminated buffers */
+static const char *safe_casestrn(const unsigned char *haystack, size_t hlen, const char *needle) {
+    size_t nlen = strlen(needle);
+    if (hlen < nlen) return NULL;
+    for (size_t i = 0; i <= hlen - nlen; i++) {
+        size_t j;
+        for (j = 0; j < nlen; j++) {
+            if (tolower(haystack[i+j] & 0xFF) != tolower((unsigned char)needle[j])) break;
+        }
+        if (j == nlen) return (const char*)(haystack + i);
+    }
+    return NULL;
+}
+
 #define QSIZE 32768
 struct Job { char ip[64]; unsigned port; };
 static struct Job q[QSIZE];
@@ -83,13 +97,24 @@ static char *resolve_url(const char *ip, unsigned port, const char *src) {
 
 static void process_html(const char *ip, unsigned port, const unsigned char *html, size_t len) {
     if (!html || len<16) return;
+
+    /* Reject binary content: check for null bytes in first 4KB */
+    for (size_t i=0; i<len && i<4096; i++) {
+        if (html[i]==0) return;
+    }
+
     s_pages++;
     __sync_add_and_fetch(&total_sites_checked,1);
     __sync_add_and_fetch(&total_html_sites,1);
     last_html_time=(uint64_t)time(0);
-    if (strcasestr((const char*)html,"<script") || strcasestr((const char*)html,"<html") ||
-        strcasestr((const char*)html,"<body") || strcasestr((const char*)html,"<head"))
-        s_html++;
+
+    /* Check for HTML markers */
+    int has_html = 0;
+    if (safe_casestrn(html, len, "<script")) has_html = 1;
+    else if (safe_casestrn(html, len, "<html")) has_html = 1;
+    else if (safe_casestrn(html, len, "<body")) has_html = 1;
+    else if (safe_casestrn(html, len, "<head")) has_html = 1;
+    if (has_html) s_html++;
 
     /* Build ipaddress */
     ipaddress ia; memset(&ia,0,sizeof(ia));
@@ -103,36 +128,44 @@ static void process_html(const char *ip, unsigned port, const unsigned char *htm
     /* Scan full HTML for inline keys */
     greyhat_scan(ia, html, (unsigned)len);
 
-    /* Find <script src="..."> tags */
+    /* Find <script src="..."> tags using safe_casestrn */
     const char *p=(const char*)html;
     int cnt=0;
-    while (cnt<10 && (p=strcasestr(p,"<script"))) {
+    while (cnt<10) {
+        const char *tag = safe_casestrn((const unsigned char*)p, len-(p-(const char*)html), "<script");
+        if (!tag) break;
         s_script_tags++;
-        p+=7;
-        const char *end=strchr(p,'>');
+        p = tag + 7;
+
+        /* Find closing > */
+        const char *end = memchr(p, '>', len-(p-(const char*)html));
         if (!end) break;
-        const char *src=strcasestr(p,"src");
-        if (src && src<end) {
-            src+=3;
-            while (src<end && (*src==' '||*src=='\t')) src++;
-            if (src<end && *src=='=') src++;
-            while (src<end && (*src==' '||*src=='\t')) src++;
-            if (src<end && (*src=='"'||*src=='\'')) {
-                char q=*src++;
-                const char *ce=memchr(src,q,end-src);
+
+        /* Look for src= within this tag */
+        const char *src = safe_casestrn((const unsigned char*)p, end-p, "src");
+        if (src && src < end) {
+            src += 3;
+            while (src < end && (*src==' ' || *src=='\t')) src++;
+            if (src < end && *src == '=') src++;
+            while (src < end && (*src==' ' || *src=='\t')) src++;
+            if (src < end && (*src=='"' || *src=='\'')) {
+                char q = *src++;
+                const char *ce = memchr(src, q, end-src);
                 if (ce) {
-                    int sl=(int)(ce-src);
+                    int sl = (int)(ce-src);
                     char sb[512];
-                    int cl=sl<511?sl:511;
-                    memcpy(sb,src,cl); sb[cl]=0;
-                    char *url=resolve_url(ip,port,sb);
+                    int cl = sl<511 ? sl : 511;
+                    memcpy(sb, src, cl);
+                    sb[cl] = 0;
+
+                    char *url = resolve_url(ip, port, sb);
                     if (!is_cdn_url(url)) {
-                        size_t jl=0;
-                        unsigned char *js=grab(url,&jl);
+                        size_t jl = 0;
+                        unsigned char *js = grab(url, &jl);
                         if (js) {
                             s_js_fetched++;
                             s_scripts++;
-                            greyhat_scan(ia,js,(unsigned)jl);
+                            greyhat_scan(ia, js, (unsigned)jl);
                             free(js);
                         } else s_dnsfail++;
                     } else s_cdn++;
@@ -141,7 +174,7 @@ static void process_html(const char *ip, unsigned port, const unsigned char *htm
                 }
             }
         }
-        p=end;
+        p = end;
     }
 }
 

@@ -96,7 +96,7 @@ print_version()
     printf("\n");
     printf("ZorpInvader version %s ( %s )\n",
         ZORPINVADER_VERSION,
-        "https://github.com/robertdavidgraham/zorp"
+        "https://github.com/elapt1c/zi"
         );
     printf("Compiled on: %s %s\n", __DATE__, __TIME__);
 
@@ -181,7 +181,7 @@ print_version()
 static void
 print_nmap_help(void)
 {
-    printf("ZorpInvader (https://github.com/robertdavidgraham/zorp)\n"
+    printf("ZorpInvader (https://github.com/elapt1c/zi)\n"
 "Usage: zorpinvader [Options]\n"
 "TARGET SPECIFICATION:\n"
 "  Can pass only IPv4/IPv6 address, CIDR networks, or ranges (non-nmap style)\n"
@@ -234,7 +234,7 @@ print_nmap_help(void)
 "  zorp -v -sS 192.168.0.0/16 10.0.0.0/8 -p 80\n"
 "  zorp 23.0.0.0/0 -p80 -output-format binary --output-filename internet.scan\n"
 "  zorp --open --readscan internet.scan -oG internet_scan.grepable\n"
-"SEE (https://github.com/robertdavidgraham/zorp) FOR MORE HELP\n"
+"SEE (https://github.com/elapt1c/zi) FOR MORE HELP\n"
 "\n");
 }
 

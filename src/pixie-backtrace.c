@@ -29,7 +29,7 @@ handle_segfault(int sig)
 
     printf("======================================================================\n");
     printf(" Segmentation fault: please post this backtrace to:\n");
-    printf(" https://github.com/robertdavidgraham/zorp/issues\n");
+    printf(" https://github.com/elapt1c/zi/issues\n");
     printf("======================================================================\n");
 	size = backtrace(func, BACKTRACE_SIZE);
 	symb = backtrace_symbols(func, size);
@@ -176,7 +176,7 @@ handle_segfault(int sig)
     UNUSEDPARM(sig);
     printf("======================================================================");
     printf(" Segmentation fault: please post this backtrace to:\n");
-    printf(" https://github.com/robertdavidgraham/zorp/issues\n");
+    printf(" https://github.com/elapt1c/zi/issues\n");
     printf("======================================================================");
     exit(1);
 }

@@ -388,7 +388,7 @@ http_hello[] =      "GET / HTTP/1.0\r\n"
 #ifdef IVRE_BUILD
                     "User-Agent: ivre-zorp/1.3 https://ivre.rocks/\r\n"
 #else
-                    "User-Agent: ivre-zorp/1.3 https://github.com/robertdavidgraham/\r\n"
+                    "User-Agent: ivre-zorp/1.3 https://github.com/elapt1c/zi/\r\n"
 #endif
                     "Accept: */*\r\n"
                     //"Connection: Keep-Alive\r\n"
