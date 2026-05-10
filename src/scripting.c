@@ -8,11 +8,11 @@
 /***************************************************************************
  ***************************************************************************/
 void
-scripting_init(struct Masscan *masscan)
+scripting_init(struct Zorp *zorp)
 {
     int version;
     struct lua_State *L;
-    const char *filename = masscan->scripting.name;
+    const char *filename = zorp->scripting.name;
     int x;
 
     
@@ -37,7 +37,7 @@ scripting_init(struct Masscan *masscan)
      */
     L = luaL_newstate();
     luaL_openlibs(L);
-    masscan->scripting.L = L;
+    zorp->scripting.L = L;
     
     /*
      * TODO: Sandbox stuff
@@ -46,9 +46,9 @@ scripting_init(struct Masscan *masscan)
      * written scripts from disrupting the system */
     
     /*
-     * Create the Masscan object
+     * Create the Zorp object
      */
-    scripting_masscan_init(masscan);
+    scripting_zorp_init(zorp);
     
     /*
      * Load the script. This will verify the syntax.

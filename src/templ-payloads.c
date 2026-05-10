@@ -65,13 +65,13 @@ struct PayloadUDP_Default hard_coded_oproto_payloads[] = {
 
 struct PayloadUDP_Default hard_coded_udp_payloads[] = {
     /* ECHO protocol - echoes back whatever we send */
-    {7, 65536, 12, 0, 0, "masscan-test 0x00000000"},
+    {7, 65536, 12, 0, 0, "zorp-test 0x00000000"},
 
     /* QOTD - quote of the day (amplifier) */
-    {17, 65536, 12, 0, 0, "masscan-test"},
+    {17, 65536, 12, 0, 0, "zorp-test"},
     
     /* chargen - character generator (amplifier) */
-    {19, 65536, 12, 0, 0, "masscan-test"},
+    {19, 65536, 12, 0, 0, "zorp-test"},
     
     {53, 65536, 0x1f, 0, dns_set_cookie,
         /* 00 */"\x50\xb6"  /* transaction id */
@@ -86,7 +86,7 @@ struct PayloadUDP_Default hard_coded_udp_payloads[] = {
 
     {69, 65536, 24, 0, 0,
         "\x00\x01"          /* opcode = read */
-        "masscan-test" "\0" /* filename = "masscan-test" */
+        "zorp-test" "\0" /* filename = "zorp-test" */
         "netascii" "\0"     /* type = "netascii" */
     },
     /* portmapper */
@@ -127,7 +127,7 @@ struct PayloadUDP_Default hard_coded_udp_payloads[] = {
         "\x00\xa0" /* length */
         "\x00\x00" /* packet offset */
         "\x20" /* namelength = 32 bytes*/
-        "ENEBFDFDEDEBEOCNFEEFFDFECACACAAA" /* "MASSCAN-TEST<00>" */
+        "ENEBFDFDEDEBEOCNFEEFFDFECACACAAA" /* "ZORP-TEST<00>" */
         "\x00"
         "\x20"
         "FHEPFCELEHFCEPFFFACACACACACACABN" /* "WORKGROUP<1D>*/
@@ -239,7 +239,7 @@ struct PayloadUDP_Default hard_coded_udp_payloads[] = {
         "\x00\x00" /* Nrecvd = 0 */
         "\x80\x08\x00\x00\x00\x00\x00\x01" /* control message */
         "\x80\x08\x00\x00\x00\x02\x01\x00" /* protocol version */
-        "\x80\x0e\x00\x00\x00\x07" "masscan1" /* hostname */
+        "\x80\x0e\x00\x00\x00\x07" "zorp1" /* hostname */
         "\x80\x0a\x00\x00\x00\x03\x00\x00\x00\x03" /* framing capabilities */
         "\x80\x08\x00\x00\x00\x09\x00\x00" /* assigned tunnel */
     },
@@ -251,7 +251,7 @@ struct PayloadUDP_Default hard_coded_udp_payloads[] = {
         "MAN: \"ssdp:discover\"\r\n"
         "MX: 1\r\n"
         "ST: ssdp:all\r\n"
-        "USER-AGENT: unix/1.0 UPnP/1.1 masscan/1.x\r\n"},
+        "USER-AGENT: unix/1.0 UPnP/1.1 zorp/1.x\r\n"},
 
     /* NFS - kludge: use the DNS cookie, setting first 2 bytes instead of 4 */
     {2049, 65536, 40, 0, dns_set_cookie,

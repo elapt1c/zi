@@ -1,5 +1,5 @@
-#ifndef MASSCAN_H
-#define MASSCAN_H
+#ifndef ZORP_H
+#define ZORP_H
 #include "massip-addr.h"
 #include "util-safefunc.h"
 #include "stack-src.h"
@@ -19,7 +19,7 @@ struct Banner1;
 struct TemplateOptions;
 
 /**
- * This is the "operation" to be performed by masscan, which is almost always
+ * This is the "operation" to be performed by zorp, which is almost always
  * to "scan" the network. However, there are some lesser operations to do
  * instead, like run a "regression self test", or "debug", or something else
  * instead of scanning. We parse the command-line in order to figure out the
@@ -89,13 +89,13 @@ struct TcpCfgPayloads
 
 
 /**
- * This is the master MASSCAN configuration structure. It is created on startup
+ * This is the master ZORP configuration structure. It is created on startup
  * by reading the command-line and parsing configuration files.
  *
  * Once read in at the start, this structure doesn't change. The transmit
  * and receive threads have only a "const" pointer to this structure.
  */
-struct Masscan
+struct Zorp
 {
     /**
      * What this program is doing, which is normally "Operation_Scan", but
@@ -502,11 +502,11 @@ struct Masscan
 
 
 int mainconf_selftest(void);
-void masscan_read_config_file(struct Masscan *masscan, const char *filename);
-void masscan_command_line(struct Masscan *masscan, int argc, char *argv[]);
-void masscan_usage(void);
-void masscan_save_state(struct Masscan *masscan);
-void main_listscan(struct Masscan *masscan);
+void zorp_read_config_file(struct Zorp *zorp, const char *filename);
+void zorp_command_line(struct Zorp *zorp, int argc, char *argv[]);
+void zorp_usage(void);
+void zorp_save_state(struct Zorp *zorp);
+void main_listscan(struct Zorp *zorp);
 
 /**
  * Load databases, such as:
@@ -514,19 +514,19 @@ void main_listscan(struct Masscan *masscan);
  *  - nmap-service-probes
  *  - pcap-payloads
  */
-void masscan_load_database_files(struct Masscan *masscan);
+void zorp_load_database_files(struct Zorp *zorp);
 
 /**
  * Pre-scan the command-line looking for options that may affect how
  * previous options are handled. This is a bit of a kludge, really.
  */
-int masscan_conf_contains(const char *x, int argc, char **argv);
+int zorp_conf_contains(const char *x, int argc, char **argv);
 
 /**
  * Called to set a <name=value> pair.
  */
 void
-masscan_set_parameter(struct Masscan *masscan,
+zorp_set_parameter(struct Zorp *zorp,
                       const char *name, const char *value);
 
 
@@ -537,8 +537,8 @@ masscan_set_parameter(struct Masscan *masscan,
  * local routers.
  */
 int
-masscan_initialize_adapter(
-    struct Masscan *masscan,
+zorp_initialize_adapter(
+    struct Zorp *zorp,
     unsigned index,
     macaddress_t *source_mac,
     macaddress_t *router_mac_ipv4,
@@ -549,12 +549,12 @@ masscan_initialize_adapter(
  * non-default values. With "echo-all", everything is echoed.
  */
 void
-masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all);
+zorp_echo(struct Zorp *zorp, FILE *fp, unsigned is_echo_all);
 
 /**
  * Echoes the list of CIDR ranges to scan.
  */
 void
-masscan_echo_cidr(struct Masscan *masscan, FILE *fp, unsigned is_echo_all);
+zorp_echo_cidr(struct Zorp *zorp, FILE *fp, unsigned is_echo_all);
 
 #endif

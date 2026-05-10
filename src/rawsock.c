@@ -640,7 +640,7 @@ rawsock_init_adapter(const char *adapter_name,
      *  logging here.
      *----------------------------------------------------------------*/
     if(is_pfring && !is_pfring_dna(adapter_name)){ /*First ensure pfring dna adapter is available*/
-        fprintf(stderr,"No pfring adapter available. Please install pfring or run masscan without the --pfring option.\n");
+        fprintf(stderr,"No pfring adapter available. Please install pfring or run zorp without the --pfring option.\n");
         return 0;
     }
 
@@ -672,7 +672,7 @@ rawsock_init_adapter(const char *adapter_name,
         /*
          * Housekeeping
          */
-        PFRING.set_application_name(adapter->ring, "masscan");
+        PFRING.set_application_name(adapter->ring, "zorp");
         PFRING.version(adapter->ring, &version);
         LOG(1, "pfring: version %d.%d.%d\n",
                 (version >> 16) & 0xFFFF,
@@ -835,7 +835,7 @@ pcap_error:
     }
     if (adapter->pcap == NULL) {
         if (strcmp(adapter_name, "vmnet1") == 0) {
-            LOG(0, " [hint] VMware on Macintosh doesn't support masscan\n");
+            LOG(0, " [hint] VMware on Macintosh doesn't support zorp\n");
         }
         return 0;
     }

@@ -19,8 +19,8 @@
  * in the configuration file.
  ***************************************************************************/
 int
-masscan_initialize_adapter(
-    struct Masscan *masscan,
+zorp_initialize_adapter(
+    struct Zorp *zorp,
     unsigned index,
     macaddress_t *source_mac,
     macaddress_t *router_mac_ipv4,
@@ -30,8 +30,8 @@ masscan_initialize_adapter(
     char *ifname;
     char ifname2[256];
     unsigned adapter_ip = 0;
-    unsigned is_usable_ipv4 = !massip_has_ipv4_targets(&masscan->targets); /* I don't understand this line, seems opposite */
-    unsigned is_usable_ipv6 = !massip_has_ipv6_targets(&masscan->targets); /* I don't understand this line, seems opposite */
+    unsigned is_usable_ipv4 = !massip_has_ipv4_targets(&zorp->targets); /* I don't understand this line, seems opposite */
+    unsigned is_usable_ipv6 = !massip_has_ipv6_targets(&zorp->targets); /* I don't understand this line, seems opposite */
     ipaddress_formatted_t fmt;
 
     /*
@@ -41,8 +41,8 @@ masscan_initialize_adapter(
      * the best Interface to use. We do this by choosing the first
      * interface with a "default route" (aka. "gateway") defined
      */
-    if (masscan->nic[index].ifname[0])
-        ifname = masscan->nic[index].ifname;
+    if (zorp->nic[index].ifname[0])
+        ifname = zorp->nic[index].ifname;
     else {
         /* no adapter specified, so find a default one */
         int err;
@@ -63,22 +63,22 @@ masscan_initialize_adapter(
      * Once we've figured out which adapter to use, we now need to
      * turn it on.
      */
-    masscan->nic[index].adapter = rawsock_init_adapter(
+    zorp->nic[index].adapter = rawsock_init_adapter(
                                             ifname,
-                                            masscan->is_pfring,
-                                            masscan->is_sendq,
-                                            masscan->nmap.packet_trace,
-                                            masscan->is_offline,
-                                            (void*)masscan->bpf_filter,
-                                            masscan->nic[index].is_vlan,
-                                            masscan->nic[index].vlan_id);
-    if (masscan->nic[index].adapter == 0) {
+                                            zorp->is_pfring,
+                                            zorp->is_sendq,
+                                            zorp->nmap.packet_trace,
+                                            zorp->is_offline,
+                                            (void*)zorp->bpf_filter,
+                                            zorp->nic[index].is_vlan,
+                                            zorp->nic[index].vlan_id);
+    if (zorp->nic[index].adapter == 0) {
         LOG(0, "[-] if:%s:init: failed\n", ifname);
         return -1;
     }
-    masscan->nic[index].link_type = masscan->nic[index].adapter->link_type;
-    LOG(1, "[+] interface-type = %u\n", masscan->nic[index].link_type);
-    rawsock_ignore_transmits(masscan->nic[index].adapter, ifname);
+    zorp->nic[index].link_type = zorp->nic[index].adapter->link_type;
+    LOG(1, "[+] interface-type = %u\n", zorp->nic[index].link_type);
+    rawsock_ignore_transmits(zorp->nic[index].adapter, ifname);
 
     /*
      * MAC ADDRESS
@@ -87,13 +87,13 @@ masscan_initialize_adapter(
      * matter what this address is, but to be a "responsible" citizen we
      * try to use the hardware address in the network card.
      */
-    if (masscan->nic[index].link_type == PCAP_DLT_NULL) {
+    if (zorp->nic[index].link_type == PCAP_DLT_NULL) {
         LOG(1, "[+] source-mac = %s\n", "none");
-    } else if (masscan->nic[index].link_type == PCAP_DLT_RAW) {
+    } else if (zorp->nic[index].link_type == PCAP_DLT_RAW) {
         LOG(1, "[+] source-mac = %s\n", "none");
     } else {
-        *source_mac = masscan->nic[index].source_mac;
-        if (masscan->nic[index].my_mac_count == 0) {
+        *source_mac = zorp->nic[index].source_mac;
+        if (zorp->nic[index].my_mac_count == 0) {
             if (macaddress_is_zero(*source_mac)) {
                 rawsock_get_adapter_mac(ifname, source_mac->addr);
             }
@@ -119,13 +119,13 @@ masscan_initialize_adapter(
      * is done by querying the adapter (or configured by user). If the
      * adapter doesn't have one, then the user must configure one.
      */
-    if (massip_has_ipv4_targets(&masscan->targets)) {
-        adapter_ip = masscan->nic[index].src.ipv4.first;
+    if (massip_has_ipv4_targets(&zorp->targets)) {
+        adapter_ip = zorp->nic[index].src.ipv4.first;
         if (adapter_ip == 0) {
             adapter_ip = rawsock_get_adapter_ip(ifname);
-            masscan->nic[index].src.ipv4.first = adapter_ip;
-            masscan->nic[index].src.ipv4.last = adapter_ip;
-            masscan->nic[index].src.ipv4.range = 1;
+            zorp->nic[index].src.ipv4.first = adapter_ip;
+            zorp->nic[index].src.ipv4.last = adapter_ip;
+            zorp->nic[index].src.ipv4.range = 1;
         }
         if (adapter_ip == 0) {
             /* We appear to have IPv4 targets, yet we cannot find an adapter
@@ -135,7 +135,7 @@ masscan_initialize_adapter(
             LOG(0, "    [hint] did you spell the name correctly?\n");
             LOG(0, "    [hint] if it has no IP address, manually set with something like "
                             "\"--source-ip 198.51.100.17\"\n");
-            if (massip_has_ipv4_targets(&masscan->targets)) {
+            if (massip_has_ipv4_targets(&zorp->targets)) {
                 return -1;
             }
         }
@@ -156,19 +156,19 @@ masscan_initialize_adapter(
          * Note: in order to ARP the router, we need to first enable the libpcap
          * code above.
          */
-        *router_mac_ipv4 = masscan->nic[index].router_mac_ipv4;
-        if (masscan->is_offline) {
+        *router_mac_ipv4 = zorp->nic[index].router_mac_ipv4;
+        if (zorp->is_offline) {
             /* If we are doing offline benchmarking/testing, then create
              * a fake MAC address fro the router */
             memcpy(router_mac_ipv4->addr, "\x66\x55\x44\x33\x22\x11", 6);
-        } else if (masscan->nic[index].link_type == PCAP_DLT_NULL) {
+        } else if (zorp->nic[index].link_type == PCAP_DLT_NULL) {
             /* If it's a VPN tunnel, then there is no Ethernet MAC address */
             LOG(1, "[+] router-mac-ipv4 = %s\n", "implicit");
-	} else if (masscan->nic[index].link_type == PCAP_DLT_RAW) {
+	} else if (zorp->nic[index].link_type == PCAP_DLT_RAW) {
             /* If it's a VPN tunnel, then there is no Ethernet MAC address */
             LOG(1, "[+] router-mac-ipv4 = %s\n", "implicit");
         } else if (macaddress_is_zero(*router_mac_ipv4)) {
-            ipv4address_t router_ipv4 = masscan->nic[index].router_ip;
+            ipv4address_t router_ipv4 = zorp->nic[index].router_ip;
             int err = 0;
 
 
@@ -181,7 +181,7 @@ masscan_initialize_adapter(
                 LOG(2, "[+] if(%s):arp: resolving IPv4 address\n", ifname);
                 
                 stack_arp_resolve(
-                        masscan->nic[index].adapter,
+                        zorp->nic[index].adapter,
                         adapter_ip,
                         *source_mac,
                         router_ipv4,
@@ -191,7 +191,7 @@ masscan_initialize_adapter(
             fmt = macaddress_fmt(*router_mac_ipv4);
             LOG(1, "[+] router-mac-ipv4 = %s\n", fmt.string);
             if (macaddress_is_zero(*router_mac_ipv4)) {
-                fmt = ipv4address_fmt(masscan->nic[index].router_ip);
+                fmt = ipv4address_fmt(zorp->nic[index].router_ip);
                 LOG(0, "[-] FAIL: ARP timed-out resolving MAC address for router %s: \"%s\"\n", ifname, fmt.string);
                 LOG(0, "    [hint] try \"--router-ip 192.0.2.1\" to specify different router\n");
                 LOG(0, "    [hint] try \"--router-mac 66-55-44-33-22-11\" instead to bypass ARP\n");
@@ -209,13 +209,13 @@ masscan_initialize_adapter(
      * is done by querying the adapter (or configured by user). If the
      * adapter doesn't have one, then the user must configure one.
      */
-    if (massip_has_ipv6_targets(&masscan->targets)) {
-        ipv6address adapter_ipv6 = masscan->nic[index].src.ipv6.first;
+    if (massip_has_ipv6_targets(&zorp->targets)) {
+        ipv6address adapter_ipv6 = zorp->nic[index].src.ipv6.first;
         if (ipv6address_is_zero(adapter_ipv6)) {
             adapter_ipv6 = rawsock_get_adapter_ipv6(ifname);
-            masscan->nic[index].src.ipv6.first = adapter_ipv6;
-            masscan->nic[index].src.ipv6.last = adapter_ipv6;
-            masscan->nic[index].src.ipv6.range = 1;
+            zorp->nic[index].src.ipv6.first = adapter_ipv6;
+            zorp->nic[index].src.ipv6.last = adapter_ipv6;
+            zorp->nic[index].src.ipv6.range = 1;
         }
         if (ipv6address_is_zero(adapter_ipv6)) {
             fprintf(stderr, "[-] FAIL: failed to detect IPv6 address of interface \"%s\"\n",
@@ -232,8 +232,8 @@ masscan_initialize_adapter(
         /*
          * ROUTER MAC ADDRESS
          */
-        *router_mac_ipv6 = masscan->nic[index].router_mac_ipv6;
-        if (masscan->is_offline) {
+        *router_mac_ipv6 = zorp->nic[index].router_mac_ipv6;
+        if (zorp->is_offline) {
             memcpy(router_mac_ipv6->addr, "\x66\x55\x44\x33\x22\x11", 6);
         }
         if (macaddress_is_zero(*router_mac_ipv6)) {
@@ -241,7 +241,7 @@ masscan_initialize_adapter(
              * Wait for router neighbor notification. This may take
              * some time */
             stack_ndpv6_resolve(
-                    masscan->nic[index].adapter,
+                    zorp->nic[index].adapter,
                     adapter_ipv6,
                     *source_mac,
                     router_mac_ipv6);
@@ -250,7 +250,7 @@ masscan_initialize_adapter(
         fmt = macaddress_fmt(*router_mac_ipv6);
         LOG(1, "[+] router-mac-ipv6 = %s\n", fmt.string);
         if (macaddress_is_zero(*router_mac_ipv6)) {
-            fmt = ipv4address_fmt(masscan->nic[index].router_ip);
+            fmt = ipv4address_fmt(zorp->nic[index].router_ip);
             LOG(0, "[-] FAIL: NDP timed-out resolving MAC address for router %s: \"%s\"\n", ifname, fmt.string);
             LOG(0, "    [hint] try \"--router-mac-ipv6 66-55-44-33-22-11\" instead to bypass ARP\n");
             LOG(0, "    [hint] try \"--interface eth0\" to change interface\n");
@@ -260,7 +260,7 @@ masscan_initialize_adapter(
 
     }
 
-    masscan->nic[index].is_usable = (is_usable_ipv4 & is_usable_ipv6);
+    zorp->nic[index].is_usable = (is_usable_ipv4 & is_usable_ipv6);
 
 
 

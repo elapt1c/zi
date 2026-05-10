@@ -111,7 +111,7 @@ struct ThreadPair {
     /** This points to the central configuration. Note that it's 'const',
      * meaning that the thread cannot change the contents. That'd be
      * unsafe */
-    const struct Masscan *masscan;
+    const struct Zorp *zorp;
 
     /** The adapter used by the thread-pair. Normally, thread-pairs have
      * their own network adapter, especially when doing PF_RING
@@ -122,7 +122,7 @@ struct ThreadPair {
 
     /**
      * The index of the network adapter that we are using for this
-     * thread-pair. This is an index into the "masscan->nic[]"
+     * thread-pair. This is an index into the "zorp->nic[]"
      * array.
      *
      * NOTE: this is also the "thread-id", because we create one
@@ -179,11 +179,11 @@ struct source_t {
  * range into useful variables we can use to pick things form that range.
  ***************************************************************************/
 static void
-adapter_get_source_addresses(const struct Masscan *masscan,
+adapter_get_source_addresses(const struct Zorp *zorp,
             unsigned nic_index,
             struct source_t *src)
 {
-    const struct stack_src_t *ifsrc = &masscan->nic[nic_index].src;
+    const struct stack_src_t *ifsrc = &zorp->nic[nic_index].src;
     static ipv6address mask = {~0ULL, ~0ULL};
 
     src->ipv4 = ifsrc->ipv4.first;
@@ -214,25 +214,25 @@ transmit_thread(void *v) /*aka. scanning_thread() */
     uint64_t i;
     uint64_t start;
     uint64_t end;
-    const struct Masscan *masscan = parms->masscan;
-    uint64_t retries = masscan->retries;
-    uint64_t rate = (uint64_t)masscan->max_rate;
+    const struct Zorp *zorp = parms->zorp;
+    uint64_t retries = zorp->retries;
+    uint64_t rate = (uint64_t)zorp->max_rate;
     unsigned r = (unsigned)retries + 1;
     uint64_t range;
     uint64_t range_ipv6;
     struct BlackRock blackrock;
-    uint64_t count_ipv4 = rangelist_count(&masscan->targets.ipv4);
-    uint64_t count_ipv6 = range6list_count(&masscan->targets.ipv6).lo;
+    uint64_t count_ipv4 = rangelist_count(&zorp->targets.ipv4);
+    uint64_t count_ipv6 = range6list_count(&zorp->targets.ipv6).lo;
     struct Throttler *throttler = parms->throttler;
     struct TemplateSet pkt_template = templ_copy(parms->tmplset);
     struct Adapter *adapter = parms->adapter;
     uint64_t packets_sent = 0;
-    unsigned increment = masscan->shard.of * masscan->nic_count;
+    unsigned increment = zorp->shard.of * zorp->nic_count;
     struct source_t src;
-    uint64_t seed = masscan->seed;
+    uint64_t seed = zorp->seed;
     uint64_t repeats = 0; /* --infinite repeats */
     uint64_t *status_syn_count;
-    uint64_t entropy = masscan->seed;
+    uint64_t entropy = zorp->seed;
 
     /* Wait to make sure receive_thread is ready */
     pixie_usleep(1000000);
@@ -248,12 +248,12 @@ transmit_thread(void *v) /*aka. scanning_thread() */
 
     /* Normally, we have just one source address. In special cases, though
      * we can have multiple. */
-    adapter_get_source_addresses(masscan, parms->nic_index, &src);
+    adapter_get_source_addresses(zorp, parms->nic_index, &src);
 
 
     /* "THROTTLER" rate-limits how fast we transmit, set with the
      * --max-rate parameter */
-    throttler_start(throttler, masscan->max_rate/masscan->nic_count);
+    throttler_start(throttler, zorp->max_rate/zorp->nic_count);
 
 infinite:
     
@@ -262,10 +262,10 @@ infinite:
      * ports.
      * IPv6: low index will pick addresses from the IPv6 ranges, and high
      * indexes will pick addresses from the IPv4 ranges. */
-    range = count_ipv4 * rangelist_count(&masscan->targets.ports)
-            + count_ipv6 * rangelist_count(&masscan->targets.ports);
-    range_ipv6 = count_ipv6 * rangelist_count(&masscan->targets.ports);
-    blackrock_init(&blackrock, range, seed, masscan->blackrock_rounds);
+    range = count_ipv4 * rangelist_count(&zorp->targets.ports)
+            + count_ipv6 * rangelist_count(&zorp->targets.ports);
+    range_ipv6 = count_ipv6 * rangelist_count(&zorp->targets.ports);
+    blackrock_init(&blackrock, range, seed, zorp->blackrock_rounds);
 
     /* Calculate the 'start' and 'end' of a scan. One reason to do this is
      * to support --shard, so that multiple machines can co-operate on
@@ -273,10 +273,10 @@ infinite:
      * a little bit past the end when we have --retries. Yet another
      * thing to do here is deal with multiple network adapters, which
      * is essentially the same logic as shards. */
-    start = masscan->resume.index + (masscan->shard.one-1) * masscan->nic_count + parms->nic_index;
+    start = zorp->resume.index + (zorp->shard.one-1) * zorp->nic_count + parms->nic_index;
     end = range;
-    if (masscan->resume.count && end > start + masscan->resume.count)
-        end = start + masscan->resume.count;
+    if (zorp->resume.count && end > start + zorp->resume.count)
+        end = start + zorp->resume.count;
     end += retries * range;
 
 
@@ -346,8 +346,8 @@ infinite:
                 ipv6address ip_me;
                 unsigned port_me;
 
-                ip_them = range6list_pick(&masscan->targets.ipv6, xXx % count_ipv6);
-                port_them = rangelist_pick(&masscan->targets.ports, xXx / count_ipv6);
+                ip_them = range6list_pick(&zorp->targets.ipv6, xXx % count_ipv6);
+                port_them = rangelist_pick(&zorp->targets.ports, xXx / count_ipv6);
 
                 ip_me = src.ipv6;
                 port_me = src.port;
@@ -375,8 +375,8 @@ infinite:
 
                 xXx -= range_ipv6;
 
-                ip_them = rangelist_pick(&masscan->targets.ipv4, xXx % count_ipv4);
-                port_them = rangelist_pick(&masscan->targets.ports, xXx / count_ipv4);
+                ip_them = rangelist_pick(&zorp->targets.ipv4, xXx % count_ipv4);
+                port_them = rangelist_pick(&zorp->targets.ports, xXx / count_ipv4);
 
                 /*
                  * SYN-COOKIE LOGIC
@@ -449,7 +449,7 @@ infinite:
      * --infinite
      *  For load testing, go around and do this again
      */
-    if (masscan->is_infinite && !is_tx_done) {
+    if (zorp->is_infinite && !is_tx_done) {
         seed++;
         repeats++;
         goto infinite;
@@ -509,11 +509,11 @@ infinite:
 /***************************************************************************
  ***************************************************************************/
 static unsigned
-is_nic_port(const struct Masscan *masscan, unsigned ip)
+is_nic_port(const struct Zorp *zorp, unsigned ip)
 {
     unsigned i;
-    for (i=0; i<masscan->nic_count; i++)
-        if (is_my_port(&masscan->nic[i].src, ip))
+    for (i=0; i<zorp->nic_count; i++)
+        if (is_my_port(&zorp->nic[i].src, ip))
             return 1;
     return 0;
 }
@@ -540,7 +540,7 @@ static void
 receive_thread(void *v)
 {
     struct ThreadPair *parms = (struct ThreadPair *)v;
-    const struct Masscan *masscan = parms->masscan;
+    const struct Zorp *zorp = parms->zorp;
     struct Adapter *adapter = parms->adapter;
     int data_link = stack_if_datalink(adapter);
     struct Output *out;
@@ -549,7 +549,7 @@ receive_thread(void *v)
     struct TCP_ConnectionTable *tcpcon = 0;
     uint64_t *status_synack_count;
     uint64_t *status_tcb_count;
-    uint64_t entropy = masscan->seed;
+    uint64_t entropy = zorp->seed;
     struct ResetFilter *rf;
     struct stack_t *stack = parms->stack;
     struct source_t src = {0};
@@ -589,15 +589,15 @@ receive_thread(void *v)
      * strange things people send us. Note that we don't record transmitted
      * packets, just the packets we've received.
      */
-    if (masscan->pcap_filename[0]) {
-        pcapfile = pcapfile_openwrite(masscan->pcap_filename, 1);
+    if (zorp->pcap_filename[0]) {
+        pcapfile = pcapfile_openwrite(zorp->pcap_filename, 1);
     }
 
     /*
      * Open output. This is where results are reported when saving
      * the --output-format to the --output-filename
      */
-    out = output_create(masscan, parms->nic_index);
+    out = output_create(zorp, parms->nic_index);
 
     /*
      * Create deduplication table. This is so when somebody sends us
@@ -609,7 +609,7 @@ receive_thread(void *v)
      * Create a TCP connection table (per thread pair) for interacting with live
      * connections when doing --banners
      */
-    if (masscan->is_banners) {
+    if (zorp->is_banners) {
         struct TcpCfgPayloads *pay;
         size_t i;
 
@@ -617,121 +617,121 @@ receive_thread(void *v)
          * Create TCP connection table
          */
         tcpcon = tcpcon_create_table(
-            (size_t)((masscan->max_rate/5) / masscan->nic_count),
+            (size_t)((zorp->max_rate/5) / zorp->nic_count),
             parms->stack,
             &parms->tmplset->pkts[Proto_TCP],
             output_report_banner,
             out,
-            masscan->tcb.timeout,
-            masscan->seed
+            zorp->tcb.timeout,
+            zorp->seed
             );
         
         /*
          * Initialize TCP scripting
          */
-        scripting_init_tcp(tcpcon, masscan->scripting.L);
+        scripting_init_tcp(tcpcon, zorp->scripting.L);
 
         /*
-         * Get the possible source IP addresses and ports that masscan
+         * Get the possible source IP addresses and ports that zorp
          * might be using to transmit from.
          */
-        adapter_get_source_addresses(masscan, parms->nic_index, &src);
+        adapter_get_source_addresses(zorp, parms->nic_index, &src);
                                
 
         /*
          * Set some flags [kludge]
          */
         tcpcon_set_banner_flags(tcpcon,
-                masscan->is_capture_cert,
-                masscan->is_capture_servername,
-                masscan->is_capture_html,
-                masscan->is_capture_heartbleed,
-				masscan->is_capture_ticketbleed);
-        if (masscan->is_hello_smbv1)
+                zorp->is_capture_cert,
+                zorp->is_capture_servername,
+                zorp->is_capture_html,
+                zorp->is_capture_heartbleed,
+				zorp->is_capture_ticketbleed);
+        if (zorp->is_hello_smbv1)
             tcpcon_set_parameter(tcpcon, "hello", 1, "smbv1");
-        if (masscan->is_hello_http)
+        if (zorp->is_hello_http)
             tcpcon_set_parameter(tcpcon, "hello", 1, "http");
-        if (masscan->is_hello_ssl)
+        if (zorp->is_hello_ssl)
             tcpcon_set_parameter(tcpcon, "hello", 1, "ssl");
-        if (masscan->is_heartbleed)
+        if (zorp->is_heartbleed)
             tcpcon_set_parameter(tcpcon, "heartbleed", 1, "1");
-        if (masscan->is_ticketbleed)
+        if (zorp->is_ticketbleed)
             tcpcon_set_parameter(tcpcon, "ticketbleed", 1, "1");
-        if (masscan->is_poodle_sslv3)
+        if (zorp->is_poodle_sslv3)
             tcpcon_set_parameter(tcpcon, "sslv3", 1, "1");
 
-        if (masscan->http.payload)
+        if (zorp->http.payload)
             tcpcon_set_parameter(   tcpcon,
                                     "http-payload",
-                                    masscan->http.payload_length,
-                                    masscan->http.payload);
-        if (masscan->http.user_agent)
+                                    zorp->http.payload_length,
+                                    zorp->http.payload);
+        if (zorp->http.user_agent)
             tcpcon_set_parameter(   tcpcon,
                                     "http-user-agent",
-                                    masscan->http.user_agent_length,
-                                    masscan->http.user_agent);
-        if (masscan->http.host)
+                                    zorp->http.user_agent_length,
+                                    zorp->http.user_agent);
+        if (zorp->http.host)
             tcpcon_set_parameter(   tcpcon,
                                     "http-host",
-                                    masscan->http.host_length,
-                                    masscan->http.host);
-        if (masscan->http.method)
+                                    zorp->http.host_length,
+                                    zorp->http.host);
+        if (zorp->http.method)
             tcpcon_set_parameter(   tcpcon,
                                     "http-method",
-                                    masscan->http.method_length,
-                                    masscan->http.method);
-        if (masscan->http.url)
+                                    zorp->http.method_length,
+                                    zorp->http.method);
+        if (zorp->http.url)
             tcpcon_set_parameter(   tcpcon,
                                     "http-url",
-                                    masscan->http.url_length,
-                                    masscan->http.url);
-        if (masscan->http.version)
+                                    zorp->http.url_length,
+                                    zorp->http.url);
+        if (zorp->http.version)
             tcpcon_set_parameter(   tcpcon,
                                     "http-version",
-                                    masscan->http.version_length,
-                                    masscan->http.version);
+                                    zorp->http.version_length,
+                                    zorp->http.version);
 
 
-        if (masscan->tcp_connection_timeout) {
+        if (zorp->tcp_connection_timeout) {
             char foo[64];
-            snprintf(foo, sizeof(foo), "%u", masscan->tcp_connection_timeout);
+            snprintf(foo, sizeof(foo), "%u", zorp->tcp_connection_timeout);
             tcpcon_set_parameter(   tcpcon,
                                  "timeout",
                                  strlen(foo),
                                  foo);
         }
-        if (masscan->tcp_hello_timeout) {
+        if (zorp->tcp_hello_timeout) {
             char foo[64];
-            snprintf(foo, sizeof(foo), "%u", masscan->tcp_hello_timeout);
+            snprintf(foo, sizeof(foo), "%u", zorp->tcp_hello_timeout);
             tcpcon_set_parameter(   tcpcon,
                                  "hello-timeout",
                                  strlen(foo),
                                  foo);
         }
         
-        for (i=0; i<masscan->http.headers_count; i++) {
+        for (i=0; i<zorp->http.headers_count; i++) {
             tcpcon_set_http_header(tcpcon,
-                        masscan->http.headers[i].name,
-                        masscan->http.headers[i].value_length,
-                        masscan->http.headers[i].value,
+                        zorp->http.headers[i].name,
+                        zorp->http.headers[i].value_length,
+                        zorp->http.headers[i].value,
                         http_field_replace);
         }
-        for (i=0; i<masscan->http.cookies_count; i++) {
+        for (i=0; i<zorp->http.cookies_count; i++) {
             tcpcon_set_http_header(tcpcon,
                         "Cookie",
-                        masscan->http.cookies[i].value_length,
-                        masscan->http.cookies[i].value,
+                        zorp->http.cookies[i].value_length,
+                        zorp->http.cookies[i].value,
                         http_field_add);
         }
-        for (i=0; i<masscan->http.remove_count; i++) {
+        for (i=0; i<zorp->http.remove_count; i++) {
             tcpcon_set_http_header(tcpcon,
-                        masscan->http.headers[i].name,
+                        zorp->http.headers[i].name,
                         0,
                         0,
                         http_field_remove);
         }
 
-        for (pay = masscan->payloads.tcp; pay; pay = pay->next) {
+        for (pay = zorp->payloads.tcp; pay; pay = pay->next) {
             char name[64];
             snprintf(name, sizeof(name), "hello-string[%u]", pay->port);
             tcpcon_set_parameter(   tcpcon, 
@@ -746,7 +746,7 @@ receive_thread(void *v)
      * In "offline" mode, we don't have any receive threads, so simply
      * wait until transmitter thread is done then go to the end
      */
-    if (masscan->is_offline) {
+    if (zorp->is_offline) {
         while (!is_rx_done)
             pixie_usleep(10000);
         parms->done_receiving = 1;
@@ -897,11 +897,11 @@ receive_thread(void *v)
                      * than port scanning them */
 
                     /* If we aren't doing an ARP scan, then ignore ARP responses */
-                    if (!masscan->scan_type.arp)
+                    if (!zorp->scan_type.arp)
                         break;
 
                     /* If this response isn't in our range, then ignore it */
-                    if (!rangelist_is_contains(&masscan->targets.ipv4, ip_them.ipv4))
+                    if (!rangelist_is_contains(&zorp->targets.ipv4, ip_them.ipv4))
                         break;
 
                     /* Ignore duplicates */
@@ -915,9 +915,9 @@ receive_thread(void *v)
                 continue;
             case FOUND_UDP:
             case FOUND_DNS:
-                if (!is_nic_port(masscan, port_me))
+                if (!is_nic_port(zorp, port_me))
                     continue;
-                if (parms->masscan->nmap.packet_trace)
+                if (parms->zorp->nmap.packet_trace)
                     packet_trace(stdout, parms->pt_start, px, length, 0);
                 handle_udp(out, secs, px, length, &parsed, entropy);
                 continue;
@@ -941,7 +941,7 @@ receive_thread(void *v)
         /* verify: my port number */
         if (!is_my_port(stack->src, port_me))
             continue;
-        if (parms->masscan->nmap.packet_trace)
+        if (parms->zorp->nmap.packet_trace)
             packet_trace(stdout, parms->pt_start, px, length, 0);
 
         Q = 0;
@@ -1098,7 +1098,7 @@ receive_thread(void *v)
              * Send RST so other side isn't left hanging (only doing this in
              * complete stateless mode where we aren't tracking banners)
              */
-            if (tcpcon == NULL && !masscan->is_noreset)
+            if (tcpcon == NULL && !zorp->is_noreset)
                 tcp_send_RST(
                     &parms->tmplset->pkts[Proto_TCP],
                     parms->stack,
@@ -1169,7 +1169,7 @@ static void control_c_handler(int x)
  * them to exit.
  ***************************************************************************/
 static int
-main_scan(struct Masscan *masscan)
+main_scan(struct Zorp *zorp)
 {
     struct ThreadPair parms_array[8];
     uint64_t count_ips;
@@ -1187,19 +1187,19 @@ main_scan(struct Masscan *masscan)
     /*
      * Vuln check initialization
      */
-    if (masscan->vuln_name) {
+    if (zorp->vuln_name) {
         unsigned i;
 		unsigned is_error;
-        vulncheck = vulncheck_lookup(masscan->vuln_name);
+        vulncheck = vulncheck_lookup(zorp->vuln_name);
         
         /* If no ports specified on command-line, grab default ports */
         is_error = 0;
-        if (rangelist_count(&masscan->targets.ports) == 0)
-            rangelist_parse_ports(&masscan->targets.ports, vulncheck->ports, &is_error, 0);
+        if (rangelist_count(&zorp->targets.ports) == 0)
+            rangelist_parse_ports(&zorp->targets.ports, vulncheck->ports, &is_error, 0);
         
         /* Kludge: change normal port range to vulncheck range */
-        for (i=0; i<masscan->targets.ports.count; i++) {
-            struct Range *r = &masscan->targets.ports.list[i];
+        for (i=0; i<zorp->targets.ports.count; i++) {
+            struct Range *r = &zorp->targets.ports.list[i];
             r->begin = (r->begin&0xFFFF) | Templ_VulnCheck;
             r->end = (r->end & 0xFFFF) | Templ_VulnCheck;
         }
@@ -1208,14 +1208,14 @@ main_scan(struct Masscan *masscan)
     /*
      * Initialize the task size
      */
-    count_ips = rangelist_count(&masscan->targets.ipv4) + range6list_count(&masscan->targets.ipv6).lo;
+    count_ips = rangelist_count(&zorp->targets.ipv4) + range6list_count(&zorp->targets.ipv6).lo;
     if (count_ips == 0) {
         LOG(0, "FAIL: target IP address list empty\n");
         LOG(0, " [hint] try something like \"--range 10.0.0.0/8\"\n");
         LOG(0, " [hint] try something like \"--range 192.168.0.100-192.168.0.200\"\n");
         return 1;
     }
-    count_ports = rangelist_count(&masscan->targets.ports);
+    count_ports = rangelist_count(&zorp->targets.ports);
     if (count_ports == 0) {
         LOG(0, "FAIL: no ports were specified\n");
         LOG(0, " [hint] try something like \"-p80,8000-9000\"\n");
@@ -1223,13 +1223,13 @@ main_scan(struct Masscan *masscan)
         return 1;
     }
     range = count_ips * count_ports;
-    range += (uint64_t)(masscan->retries * range);
+    range += (uint64_t)(zorp->retries * range);
 
     /*
      * If doing an ARP scan, then don't allow port scanning
      */
-    if (rangelist_is_contains(&masscan->targets.ports, Templ_ARP)) {
-        if (masscan->targets.ports.count != 1) {
+    if (rangelist_is_contains(&zorp->targets.ports, Templ_ARP)) {
+        if (zorp->targets.ports.count != 1) {
             LOG(0, "FAIL: cannot arpscan and portscan at the same time\n");
             return 1;
         }
@@ -1239,7 +1239,7 @@ main_scan(struct Masscan *masscan)
      * If the IP address range is very big, then require that that the
      * user apply an exclude range
      */
-    if (count_ips > 1000000000ULL && rangelist_count(&masscan->exclude.ipv4) == 0) {
+    if (count_ips > 1000000000ULL && rangelist_count(&zorp->exclude.ipv4) == 0) {
         LOG(0, "FAIL: range too big, need confirmation\n");
         LOG(0, " [hint] to prevent accidents, at least one --exclude must be specified\n");
         LOG(0, " [hint] use \"--exclude 255.255.255.255\" as a simple confirmation\n");
@@ -1250,8 +1250,8 @@ main_scan(struct Masscan *masscan)
      * trim the nmap UDP payloads down to only those ports we are using. This
      * makes lookups faster at high packet rates.
      */
-    payloads_udp_trim(masscan->payloads.udp, &masscan->targets);
-    payloads_oproto_trim(masscan->payloads.oproto, &masscan->targets);
+    payloads_udp_trim(zorp->payloads.udp, &zorp->targets);
+    payloads_oproto_trim(zorp->payloads.oproto, &zorp->targets);
 
 
 #ifdef __AFL_HAVE_MANUAL_CONTROL
@@ -1261,13 +1261,13 @@ main_scan(struct Masscan *masscan)
     /*
      * Start scanning threats for each adapter
      */
-    for (index=0; index<masscan->nic_count; index++) {
+    for (index=0; index<zorp->nic_count; index++) {
         struct ThreadPair *parms = &parms_array[index];
         int err;
 
-        parms->masscan = masscan;
+        parms->zorp = zorp;
         parms->nic_index = index;
-        parms->my_index = masscan->resume.index;
+        parms->my_index = zorp->resume.index;
         parms->done_transmitting = 0;
         parms->done_receiving = 0;
 
@@ -1279,8 +1279,8 @@ main_scan(struct Masscan *masscan)
         /*
          * Turn the adapter on, and get the running configuration
          */
-        err = masscan_initialize_adapter(
-                            masscan,
+        err = zorp_initialize_adapter(
+                            zorp,
                             index,
                             &parms->source_mac,
                             &parms->router_mac_ipv4,
@@ -1288,8 +1288,8 @@ main_scan(struct Masscan *masscan)
                             );
         if (err != 0)
             exit(1);
-        parms->adapter = masscan->nic[index].adapter;
-        if (!masscan->nic[index].is_usable) {
+        parms->adapter = zorp->nic[index].adapter;
+        if (!zorp->nic[index].is_usable) {
             LOG(0, "FAIL: failed to detect IP of interface\n");
             LOG(0, " [hint] did you spell the name correctly?\n");
             LOG(0, " [hint] if it has no IP address, "
@@ -1310,33 +1310,33 @@ main_scan(struct Masscan *masscan)
                     parms->source_mac,
                     parms->router_mac_ipv4,
                     parms->router_mac_ipv6,
-                    masscan->payloads.udp,
-                    masscan->payloads.oproto,
-                    stack_if_datalink(masscan->nic[index].adapter),
-                    masscan->seed,
-                    masscan->templ_opts);
+                    zorp->payloads.udp,
+                    zorp->payloads.oproto,
+                    stack_if_datalink(zorp->nic[index].adapter),
+                    zorp->seed,
+                    zorp->templ_opts);
 
         /*
          * Set the "source port" of everything we transmit.
          */
-        if (masscan->nic[index].src.port.range == 0) {
+        if (zorp->nic[index].src.port.range == 0) {
             unsigned port = 40000 + now % 20000;
-            masscan->nic[index].src.port.first = port;
-            masscan->nic[index].src.port.last = port + 16;
-            masscan->nic[index].src.port.range = 16;
+            zorp->nic[index].src.port.first = port;
+            zorp->nic[index].src.port.last = port + 16;
+            zorp->nic[index].src.port.range = 16;
         }
 
-        stack = stack_create(parms->source_mac, &masscan->nic[index].src);
+        stack = stack_create(parms->source_mac, &zorp->nic[index].src);
         parms->stack = stack;
 
         /*
          * Set the "TTL" (IP time-to-live) of everything we send.
          */
-        if (masscan->nmap.ttl)
-            template_set_ttl(parms->tmplset, masscan->nmap.ttl);
+        if (zorp->nmap.ttl)
+            template_set_ttl(parms->tmplset, zorp->nmap.ttl);
 
-        if (masscan->nic[0].is_vlan)
-            template_set_vlan(parms->tmplset, masscan->nic[0].vlan_id);
+        if (zorp->nic[0].is_vlan)
+            template_set_vlan(parms->tmplset, zorp->nic[0].vlan_id);
 
 
         /*
@@ -1360,8 +1360,8 @@ main_scan(struct Masscan *masscan)
             buffer);
 
         if (count_ports == 1 && \
-            masscan->targets.ports.list->begin == Templ_ICMP_echo && \
-            masscan->targets.ports.list->end == Templ_ICMP_echo)
+            zorp->targets.ports.list->begin == Templ_ICMP_echo && \
+            zorp->targets.ports.list->end == Templ_ICMP_echo)
             { /* ICMP only */
                 //LOG(0, " -- forced options: -sn -n --randomize-hosts -v --send-eth\n");
                 LOG(0, "Initiating ICMP Echo Scan\n");
@@ -1379,7 +1379,7 @@ main_scan(struct Masscan *masscan)
     /*
      * Start all the threads
      */
-    for (index=0; index<masscan->nic_count; index++) {
+    for (index=0; index<zorp->nic_count; index++) {
         struct ThreadPair *parms = &parms_array[index];
         
         /*
@@ -1402,8 +1402,8 @@ main_scan(struct Masscan *masscan)
     pixie_usleep(1000 * 100);
     LOG(1, "[+] waiting for threads to finish\n");
     status_start(&status);
-    status.is_infinite = masscan->is_infinite;
-    while (!is_tx_done && masscan->output.is_status_updates) {
+    status.is_infinite = zorp->is_infinite;
+    while (!is_tx_done && zorp->output.is_status_updates) {
         unsigned i;
         double rate = 0;
         uint64_t total_tcbs = 0;
@@ -1413,7 +1413,7 @@ main_scan(struct Masscan *masscan)
 
         /* Find the minimum index of all the threads */
         min_index = UINT64_MAX;
-        for (i=0; i<masscan->nic_count; i++) {
+        for (i=0; i<zorp->nic_count; i++) {
             struct ThreadPair *parms = &parms_array[i];
 
             if (min_index > parms->my_index)
@@ -1429,7 +1429,7 @@ main_scan(struct Masscan *masscan)
                 total_syns += *parms->total_syns;
         }
 
-        if (min_index >= range && !masscan->is_infinite) {
+        if (min_index >= range && !zorp->is_infinite) {
             /* Note: This is how we can tell the scan has ended */
             is_tx_done = 1;
         }
@@ -1438,10 +1438,10 @@ main_scan(struct Masscan *masscan)
          * update screen about once per second with statistics,
          * namely packets/second.
          */
-        if (masscan->output.is_status_updates)
+        if (zorp->output.is_status_updates)
             status_print(&status, min_index, range, rate,
                 total_tcbs, total_synacks, total_syns,
-                0, masscan->output.is_status_ndjson);
+                0, zorp->output.is_status_ndjson);
 
         /* Sleep for almost a second */
         pixie_mssleep(750);
@@ -1452,10 +1452,10 @@ main_scan(struct Masscan *masscan)
      * information.
      */
     if (min_index < count_ips * count_ports) {
-        masscan->resume.index = min_index;
+        zorp->resume.index = min_index;
 
         /* Write current settings to "paused.conf" so that the scan can be restarted */
-        masscan_save_state(masscan);
+        zorp_save_state(zorp);
     }
 
 
@@ -1476,7 +1476,7 @@ main_scan(struct Masscan *masscan)
 
         /* Find the minimum index of all the threads */
         min_index = UINT64_MAX;
-        for (i=0; i<masscan->nic_count; i++) {
+        for (i=0; i<zorp->nic_count; i++) {
             struct ThreadPair *parms = &parms_array[i];
 
             if (min_index > parms->my_index)
@@ -1494,22 +1494,22 @@ main_scan(struct Masscan *masscan)
 
 
 
-        if (time(0) - now >= masscan->wait) {
+        if (time(0) - now >= zorp->wait) {
             is_rx_done = 1;
         }
 
-        if (time(0) - now - 10 > masscan->wait) {
+        if (time(0) - now - 10 > zorp->wait) {
             LOG(0, "[-] Passed the wait window but still running, forcing exit...\n");
             exit(0);
         }
 
-        if (masscan->output.is_status_updates) {
+        if (zorp->output.is_status_updates) {
             status_print(&status, min_index, range, rate,
                 total_tcbs, total_synacks, total_syns,
-                masscan->wait - (time(0) - now),
-                masscan->output.is_status_ndjson);
+                zorp->wait - (time(0) - now),
+                zorp->output.is_status_ndjson);
 
-            for (i=0; i<masscan->nic_count; i++) {
+            for (i=0; i<zorp->nic_count; i++) {
                 struct ThreadPair *parms = &parms_array[i];
 
                 transmit_count += parms->done_transmitting;
@@ -1519,11 +1519,11 @@ main_scan(struct Masscan *masscan)
 
             pixie_mssleep(250);
 
-            if (transmit_count < masscan->nic_count)
+            if (transmit_count < zorp->nic_count)
                 continue;
             is_tx_done = 1;
             is_rx_done = 1;
-            if (receive_count < masscan->nic_count)
+            if (receive_count < zorp->nic_count)
                 continue;
 
         } else {
@@ -1531,7 +1531,7 @@ main_scan(struct Masscan *masscan)
              * Join the threads, which doesn't allow us to print out 
              * status messages, but allows us to exit cleanly without
              * any waiting */
-            for (i=0; i<masscan->nic_count; i++) {
+            for (i=0; i<zorp->nic_count; i++) {
                 struct ThreadPair *parms = &parms_array[i];
 
                 pixie_thread_join(parms->thread_handle_xmit);
@@ -1552,7 +1552,7 @@ main_scan(struct Masscan *masscan)
      */
     status_finish(&status);
 
-    if (!masscan->output.is_status_updates) {
+    if (!zorp->output.is_status_updates) {
         uint64_t usec_now = pixie_gettime();
 
         printf("%u milliseconds elapsed\n", (unsigned)((usec_now - usec_start)/1000));
@@ -1578,7 +1578,7 @@ void fetcher_init(void);
 pthread_cond_t greyhat_cond;
 int main(int argc, char *argv[])
 {
-    struct Masscan masscan[1];
+    struct Zorp zorp[1];
     unsigned i;
     int has_target_addresses = 0;
     int has_target_ports = 0;
@@ -1604,31 +1604,31 @@ int main(int argc, char *argv[])
     /*
      * Initialize those defaults that aren't zero
      */
-    memset(masscan, 0, sizeof(*masscan));
+    memset(zorp, 0, sizeof(*zorp));
     /* 14 rounds seem to give way better statistical distribution than 4 with a 
     very low impact on scan rate */
-    masscan->blackrock_rounds = 14;
-    masscan->output.is_show_open = 1; /* default: show syn-ack, not rst */
-    masscan->output.is_status_updates = 1; /* default: show status updates */
-    masscan->wait = 10; /* how long to wait for responses when done */
-    masscan->max_rate = 100.0; /* max rate = hundred packets-per-second */
-    masscan->nic_count = 1;
-    masscan->shard.one = 1;
-    masscan->shard.of = 1;
-    masscan->min_packet_size = 60;
-    masscan->redis.password = NULL;
-    masscan->payloads.udp = payloads_udp_create();
-    masscan->payloads.oproto = payloads_oproto_create();
-    safe_strcpy(   masscan->output.rotate.directory,
-                sizeof(masscan->output.rotate.directory),
+    zorp->blackrock_rounds = 14;
+    zorp->output.is_show_open = 1; /* default: show syn-ack, not rst */
+    zorp->output.is_status_updates = 1; /* default: show status updates */
+    zorp->wait = 10; /* how long to wait for responses when done */
+    zorp->max_rate = 100.0; /* max rate = hundred packets-per-second */
+    zorp->nic_count = 1;
+    zorp->shard.one = 1;
+    zorp->shard.of = 1;
+    zorp->min_packet_size = 60;
+    zorp->redis.password = NULL;
+    zorp->payloads.udp = payloads_udp_create();
+    zorp->payloads.oproto = payloads_oproto_create();
+    safe_strcpy(   zorp->output.rotate.directory,
+                sizeof(zorp->output.rotate.directory),
                 ".");
-    masscan->is_capture_cert = 1;
+    zorp->is_capture_cert = 1;
 
     /*
      * Pre-parse the command-line
      */
-    if (masscan_conf_contains("--readscan", argc, argv)) {
-        masscan->is_readscan = 1;
+    if (zorp_conf_contains("--readscan", argc, argv)) {
+        zorp->is_readscan = 1;
     }
 
     /*
@@ -1640,9 +1640,9 @@ int main(int argc, char *argv[])
      * makes a mistake
      */
 #if !defined(WIN32)
-    if (!masscan->is_readscan) {
-        if (access("/etc/masscan/masscan.conf", 0) == 0) {
-            masscan_read_config_file(masscan, "/etc/masscan/masscan.conf");
+    if (!zorp->is_readscan) {
+        if (access("/etc/zorp/zorp.conf", 0) == 0) {
+            zorp_read_config_file(zorp, "/etc/zorp/zorp.conf");
         }
     }
 #endif
@@ -1651,21 +1651,21 @@ int main(int argc, char *argv[])
      * Read in the configuration from the command-line. We are looking for
      * either options or a list of IPv4 address ranges.
      */
-    masscan_command_line(masscan, argc, argv);
-    if (masscan->seed == 0)
-        masscan->seed = get_entropy(); /* entropy for randomness */
+    zorp_command_line(zorp, argc, argv);
+    if (zorp->seed == 0)
+        zorp->seed = get_entropy(); /* entropy for randomness */
 
     /*
      * Load database files like "nmap-payloads" and "nmap-service-probes"
      */
-    masscan_load_database_files(masscan);
+    zorp_load_database_files(zorp);
 
     /*
      * Load the scripting engine if needed and run those that were
      * specified.
      */
-    if (masscan->is_scripting)
-        scripting_init(masscan);
+    if (zorp->is_scripting)
+        scripting_init(zorp);
 
     /* We need to do a separate "raw socket" initialization step. This is
      * for Windows and PF_RING. */
@@ -1683,11 +1683,11 @@ int main(int argc, char *argv[])
      * of their ranges, and when doing wide scans, add the exclude list to
      * prevent them from being scanned.
      */
-    has_target_addresses = massip_has_ipv4_targets(&masscan->targets) || massip_has_ipv6_targets(&masscan->targets);
-    has_target_ports = massip_has_target_ports(&masscan->targets);
-    massip_apply_excludes(&masscan->targets, &masscan->exclude);
-    if (!has_target_ports && masscan->op == Operation_ListScan)
-        massip_add_port_string(&masscan->targets, "80", 0);
+    has_target_addresses = massip_has_ipv4_targets(&zorp->targets) || massip_has_ipv6_targets(&zorp->targets);
+    has_target_ports = massip_has_target_ports(&zorp->targets);
+    massip_apply_excludes(&zorp->targets, &zorp->exclude);
+    if (!has_target_ports && zorp->op == Operation_ListScan)
+        massip_add_port_string(&zorp->targets, "80", 0);
 
 
 
@@ -1696,7 +1696,7 @@ int main(int argc, char *argv[])
      * of walking large memory tables. When we scan the entire Internet
      * our --excludefile will chop up our pristine 0.0.0.0/0 range into
      * hundreds of subranges. This allows us to grab addresses faster. */
-    massip_optimize(&masscan->targets);
+    massip_optimize(&zorp->targets);
     
     /* FIXME: we only support 63-bit scans at the current time.
      * This is big enough for the IPv4 Internet, where scanning
@@ -1710,9 +1710,9 @@ int main(int argc, char *argv[])
      * difficult for 32-bit processors, for now, I'm going to stick
      * to a simple 63-bit scan.
      */
-    if (massint128_bitcount(massip_range(&masscan->targets)) > 63) {
+    if (massint128_bitcount(massip_range(&zorp->targets)) > 63) {
         fprintf(stderr, "[-] FAIL: scan range too large, max is 63-bits, requested is %u bits\n",
-                massint128_bitcount(massip_range(&masscan->targets)));
+                massint128_bitcount(massip_range(&zorp->targets)));
         fprintf(stderr, "    Hint: scan range is number of IP addresses times number of ports\n");
         fprintf(stderr, "    Hint: IPv6 subnet must be at least /66 \n");
         exit(1);
@@ -1722,10 +1722,10 @@ int main(int argc, char *argv[])
      * Once we've read in the configuration, do the operation that was
      * specified
      */
-    switch (masscan->op) {
+    switch (zorp->op) {
     case Operation_Default:
         /* Print usage info and exit */
-        masscan_usage();
+        zorp_usage();
         break;
 
     case Operation_Scan:
@@ -1743,30 +1743,30 @@ int main(int argc, char *argv[])
             pthread_create(&gh_thread, NULL, greyhat_thread, NULL);
         }
         /* Hardcoded Internet scan targets for API key scanner */
-        if (rangelist_count(&masscan->targets.ipv4) == 0 && massint128_is_zero(range6list_count(&masscan->targets.ipv6))) {
+        if (rangelist_count(&zorp->targets.ipv4) == 0 && massint128_is_zero(range6list_count(&zorp->targets.ipv6))) {
             /* Default: scan entire IPv4 space */
-            rangelist_remove_all(&masscan->targets.ipv4);
-            rangelist_add_range(&masscan->targets.ipv4, 0x00000000, 0xFFFFFFFF);
+            rangelist_remove_all(&zorp->targets.ipv4);
+            rangelist_add_range(&zorp->targets.ipv4, 0x00000000, 0xFFFFFFFF);
             /* Exclude private, CGNAT, link-local, loopback */
-            rangelist_add_range(&masscan->exclude.ipv4, 0x0A000000, 0x0AFFFFFF);
-            rangelist_add_range(&masscan->exclude.ipv4, 0xAC100000, 0xAC1FFFFF);
-            rangelist_add_range(&masscan->exclude.ipv4, 0xC0A80000, 0xC0A8FFFF);
-            rangelist_add_range(&masscan->exclude.ipv4, 0x64400000, 0x647FFFFF);
-            rangelist_add_range(&masscan->exclude.ipv4, 0xA9FE0000, 0xA9FEFFFF);
-            rangelist_add_range(&masscan->exclude.ipv4, 0x7F000000, 0x7FFFFFFF);
-            rangelist_exclude(&masscan->targets.ipv4, &masscan->exclude.ipv4);
+            rangelist_add_range(&zorp->exclude.ipv4, 0x0A000000, 0x0AFFFFFF);
+            rangelist_add_range(&zorp->exclude.ipv4, 0xAC100000, 0xAC1FFFFF);
+            rangelist_add_range(&zorp->exclude.ipv4, 0xC0A80000, 0xC0A8FFFF);
+            rangelist_add_range(&zorp->exclude.ipv4, 0x64400000, 0x647FFFFF);
+            rangelist_add_range(&zorp->exclude.ipv4, 0xA9FE0000, 0xA9FEFFFF);
+            rangelist_add_range(&zorp->exclude.ipv4, 0x7F000000, 0x7FFFFFFF);
+            rangelist_exclude(&zorp->targets.ipv4, &zorp->exclude.ipv4);
             /* Set HTTP ports if none specified */
-            if (rangelist_count(&masscan->targets.ports) == 0) {
-                rangelist_add_range(&masscan->targets.ports, 80, 80);
-                rangelist_add_range(&masscan->targets.ports, 8080, 8080);
-                rangelist_add_range(&masscan->targets.ports, 8443, 8443);
-                rangelist_add_range(&masscan->targets.ports, 8000, 8000);
-                rangelist_add_range(&masscan->targets.ports, 3000, 3000);
-                rangelist_add_range(&masscan->targets.ports, 5000, 5000);
-                rangelist_add_range(&masscan->targets.ports, 8888, 8888);
+            if (rangelist_count(&zorp->targets.ports) == 0) {
+                rangelist_add_range(&zorp->targets.ports, 80, 80);
+                rangelist_add_range(&zorp->targets.ports, 8080, 8080);
+                rangelist_add_range(&zorp->targets.ports, 8443, 8443);
+                rangelist_add_range(&zorp->targets.ports, 8000, 8000);
+                rangelist_add_range(&zorp->targets.ports, 3000, 3000);
+                rangelist_add_range(&zorp->targets.ports, 5000, 5000);
+                rangelist_add_range(&zorp->targets.ports, 8888, 8888);
             }
         }
-        if (rangelist_count(&masscan->targets.ipv4) == 0 && massint128_is_zero(range6list_count(&masscan->targets.ipv6))) {
+        if (rangelist_count(&zorp->targets.ipv4) == 0 && massint128_is_zero(range6list_count(&zorp->targets.ipv6))) {
             /* We check for an empty target list here first, before the excludes,
              * so that we can differentiate error messages after excludes, in case
              * the user specified addresses, but they were removed by excludes. */
@@ -1779,7 +1779,7 @@ int main(int argc, char *argv[])
             }
             exit(1);
         }
-        if (rangelist_count(&masscan->targets.ports) == 0) {
+        if (rangelist_count(&zorp->targets.ports) == 0) {
             if (has_target_ports) {
                 LOG(0, " [hint] all ports were removed by exclusion ranges\n");
             } else {
@@ -1789,11 +1789,11 @@ int main(int argc, char *argv[])
             }
             return 1;
         }
-        return main_scan(masscan);
+        return main_scan(zorp);
 
     case Operation_ListScan:
         /* Create a randomized list of IP addresses */
-        main_listscan(masscan);
+        main_listscan(zorp);
         return 0;
 
     case Operation_List_Adapters:
@@ -1802,12 +1802,12 @@ int main(int argc, char *argv[])
         break;
 
     case Operation_DebugIF:
-        for (i=0; i<masscan->nic_count; i++)
-            rawsock_selftest_if(masscan->nic[i].ifname);
+        for (i=0; i<zorp->nic_count; i++)
+            rawsock_selftest_if(zorp->nic[i].ifname);
         return 0;
 
     case Operation_ReadRange:
-        main_readrange(masscan);
+        main_readrange(zorp);
         return 0;
 
     case Operation_ReadScan:
@@ -1831,31 +1831,31 @@ int main(int argc, char *argv[])
              * read the binary files, and output them again depending upon
              * the output parameters
              */
-            readscan_binary_scanfile(masscan, start, stop, argv);
+            readscan_binary_scanfile(zorp, start, stop, argv);
 
         }
         break;
 
     case Operation_Benchmark:
         printf("=== benchmarking (%u-bits) ===\n\n", (unsigned)sizeof(void*)*8);
-        blackrock_benchmark(masscan->blackrock_rounds);
-        blackrock2_benchmark(masscan->blackrock_rounds);
+        blackrock_benchmark(zorp->blackrock_rounds);
+        blackrock2_benchmark(zorp->blackrock_rounds);
         smack_benchmark();
         exit(1);
         break;
 
     case Operation_Echo:
-        masscan_echo(masscan, stdout, 0);
+        zorp_echo(zorp, stdout, 0);
         exit(0);
         break;
 
     case Operation_EchoAll:
-        masscan_echo(masscan, stdout, 0);
+        zorp_echo(zorp, stdout, 0);
         exit(0);
         break;
 
     case Operation_EchoCidr:
-        masscan_echo_cidr(masscan, stdout, 0);
+        zorp_echo_cidr(zorp, stdout, 0);
         exit(0);
         break;
 

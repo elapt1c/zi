@@ -61,7 +61,7 @@ void massip_optimize(struct MassIP *targets);
  * "blackrock" algorithm to randomize the index before calling this function.
  *
  * It is this function, plus the 'blackrock' randomization algorithm, that
- * is at the heart of Masscan. 
+ * is at the heart of Zorp. 
  */
 int massip_pick(const struct MassIP *massip, uint64_t index, ipaddress *addr, unsigned *port);
 

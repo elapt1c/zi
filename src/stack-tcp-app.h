@@ -18,7 +18,7 @@ enum App_Event {
 
 /**
  * This is the interface between the underlying custom TCP/IP stack and
- * the rest of masscan. SCRIPTING will eventually go in here.
+ * the rest of zorp. SCRIPTING will eventually go in here.
  */
 unsigned
 application_event(  struct stack_handle_t *socket,

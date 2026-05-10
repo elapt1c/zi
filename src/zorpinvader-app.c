@@ -59,7 +59,7 @@ zorpinvader_app_to_string(enum ApplicationProtocol proto)
 /******************************************************************************
  ******************************************************************************/
 enum ApplicationProtocol
-masscan_string_to_app(const char *str)
+zorp_string_to_app(const char *str)
 {
     const static struct {
         const char *name;

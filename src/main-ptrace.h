@@ -1,5 +1,5 @@
-#ifndef masscan_main_ptrace_h
-#define masscan_main_ptrace_h
+#ifndef zorp_main_ptrace_h
+#define zorp_main_ptrace_h
 #include <stdio.h>
 #include <stdint.h>
 

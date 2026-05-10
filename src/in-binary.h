@@ -1,6 +1,6 @@
 #ifndef IN_BINARY_H
 #define IN_BINARY_H
-struct Masscan;
+struct Zorp;
 
 /**
  * Read that output of previous scans that were saved in the binary format
@@ -9,7 +9,7 @@ struct Masscan;
  * JSON or XML.
  */
 void
-readscan_binary_scanfile(struct Masscan *masscan, 
+readscan_binary_scanfile(struct Zorp *zorp, 
                      int arg_first, int arg_max, char *argv[]);
 
 #endif

@@ -1,7 +1,7 @@
 /*
     IPv4 and port ranges
  
- This is one of the more integral concepts to how masscan works internally.
+ This is one of the more integral concepts to how zorp works internally.
  We combine all the input addresses and address ranges into a sorted list
  of 'target' IP addresses. This allows us to enumerate all the addresses
  in order by incrementing a simple index. It is that index that we randomize

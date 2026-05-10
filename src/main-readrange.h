@@ -1,8 +1,8 @@
 #ifndef MAIN_READRANGE_H
 #define MAIN_READRANGE_H
-struct Masscan;
+struct Zorp;
 
 void
-main_readrange(struct Masscan *masscan);
+main_readrange(struct Zorp *zorp);
 
 #endif

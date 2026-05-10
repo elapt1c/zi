@@ -24,7 +24,7 @@
 
 static const size_t BUF_MAX = 1024*1024;
 
-struct MasscanRecord {
+struct ZorpRecord {
     unsigned timestamp;
     ipaddress ip;
     unsigned char ip_proto;
@@ -43,7 +43,7 @@ parse_status(struct Output *out,
         enum PortStatus status, /* open/closed */
         const unsigned char *buf, size_t buf_length)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
 
     if (buf_length < 12)
         return;
@@ -105,7 +105,7 @@ parse_status2(struct Output *out,
         const unsigned char *buf, size_t buf_length,
         struct MassIP *filter)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
 
     if (buf_length < 13)
         return;
@@ -230,7 +230,7 @@ parse_status6(struct Output *out,
         const unsigned char *buf, size_t length,
         struct MassIP *filter)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
     size_t offset = 0;
 
     /* parse record */
@@ -282,7 +282,7 @@ parse_banner6(struct Output *out, unsigned char *buf, size_t length,
               const struct MassIP *filter,
               const struct RangeList *btypes)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
     size_t offset = 0;
 
     /*
@@ -339,7 +339,7 @@ parse_banner6(struct Output *out, unsigned char *buf, size_t length,
 static void
 parse_banner3(struct Output *out, unsigned char *buf, size_t buf_length)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
 
     /*
      * Parse the parts that are common to most records
@@ -375,7 +375,7 @@ parse_banner3(struct Output *out, unsigned char *buf, size_t buf_length)
 static void
 parse_banner4(struct Output *out, unsigned char *buf, size_t buf_length)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
 
     if (buf_length < 13)
         return;
@@ -416,7 +416,7 @@ parse_banner9(struct Output *out, unsigned char *buf, size_t buf_length,
               const struct MassIP *filter,
               const struct RangeList *btypes)
 {
-    struct MasscanRecord record;
+    struct ZorpRecord record;
     unsigned char *data = buf+14;
     size_t data_length = buf_length-14;
 
@@ -505,9 +505,9 @@ _binaryfile_parse(struct Output *out, const char *filename,
     }
 
     /* Make sure it's got the format string */
-    if (memcmp(buf, "masscan/1.1", 11) != 0) {
+    if (memcmp(buf, "zorp/1.1", 11) != 0) {
         LOG(0,
-                "[-] %s: unknown file format (expected \"masscan/1.1\")\n",
+                "[-] %s: unknown file format (expected \"zorp/1.1\")\n",
                 filename);
         goto end;
     }
@@ -647,13 +647,13 @@ end:
 
 
 /*****************************************************************************
- * When masscan is called with the "--readscan" parameter, it doesn't
+ * When zorp is called with the "--readscan" parameter, it doesn't
  * do a scan of the live network, but instead reads scan results from
  * a file. Those scan results can then be written out in any of the
  * other formats. This preserves the original timestamps.
  *****************************************************************************/
 void
-readscan_binary_scanfile(struct Masscan *masscan,
+readscan_binary_scanfile(struct Zorp *zorp,
                      int arg_first, int arg_max, char *argv[])
 {
     struct Output *out;
@@ -662,7 +662,7 @@ readscan_binary_scanfile(struct Masscan *masscan,
     /*
      * Create the output system, such as XML or JSON output
      */
-    out = output_create(masscan, 0);
+    out = output_create(zorp, 0);
     
     /*
      * Set the start time to zero. We'll read it from the first file
@@ -677,11 +677,11 @@ readscan_binary_scanfile(struct Masscan *masscan,
      * parameter, and 'arg_max' is the parameter after
      * the last filename. For example, consider an argument list that
      * looks like:
-     *   masscan --foo --readscan file1.scan file2.scan --bar
+     *   zorp --foo --readscan file1.scan file2.scan --bar
      * Then arg_first=3 and arg_max=5.
      */
     for (i=arg_first; i<arg_max; i++) {
-        _binaryfile_parse(out, argv[i], &masscan->targets, &masscan->banner_types);
+        _binaryfile_parse(out, argv[i], &zorp->targets, &zorp->banner_types);
     }
 
     /* Done! */

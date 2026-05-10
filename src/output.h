@@ -11,7 +11,7 @@
 
 #define MAX_BANNER_LENGTH 8192
 
-struct Masscan;
+struct Zorp;
 struct Output;
 enum ApplicationProtocol;
 enum PortStatus;
@@ -41,11 +41,11 @@ struct OutputType {
 };
 
 /**
- * Masscan creates one "output" structure per thread.
+ * Zorp creates one "output" structure per thread.
  */
 struct Output
 {
-    const struct Masscan *masscan;
+    const struct Zorp *zorp;
     char *filename;
     struct stack_src_t src[8];
     FILE *fp;
@@ -154,7 +154,7 @@ extern const struct OutputType grepable_output;
  * Creates an "output" object. This is called by the receive thread in order
  * to send "status" information (open/closed ports) and "banners" to either
  * the command-line or to files in specific formats, such as XML or Redis
- * @param masscan
+ * @param zorp
  *      The master configuration.
  * @param thread_index
  *      When there are more than one receive threads, they are differentiated
@@ -163,7 +163,7 @@ extern const struct OutputType grepable_output;
  *      an output object that must eventually be destroyed by output_destroy().
  */
 struct Output *
-output_create(const struct Masscan *masscan, unsigned thread_index);
+output_create(const struct Zorp *zorp, unsigned thread_index);
 
 void output_destroy(struct Output *output);
 

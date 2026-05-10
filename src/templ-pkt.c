@@ -1361,7 +1361,7 @@ _template_init(
 	/* the default, do nothing */
     } else {
 	LOG(0, "[-] FAILED: bad packet template, unknown data link type\n");
-        LOG(0, "    [hint] masscan doesn't know how to format packets for this interface\n");
+        LOG(0, "    [hint] zorp doesn't know how to format packets for this interface\n");
 	exit(1);
     }
 

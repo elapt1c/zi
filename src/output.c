@@ -387,51 +387,51 @@ indexed_filename(const char *filename, unsigned index)
  * rather than later in the scan when it might fail.
  *****************************************************************************/
 struct Output *
-output_create(const struct Masscan *masscan, unsigned thread_index)
+output_create(const struct Zorp *zorp, unsigned thread_index)
 {
     struct Output *out;
     unsigned i;
 
     /* allocate/initialize memory */
     out = CALLOC(1, sizeof(*out));
-    out->masscan = masscan;
+    out->zorp = zorp;
     out->when_scan_started = time(0);
     out->is_virgin_file = 1;
 
     /*
-     * Copy the configuration information from the 'masscan' structure.
+     * Copy the configuration information from the 'zorp' structure.
      */
-    out->rotate.period = masscan->output.rotate.timeout;
-    out->rotate.offset = masscan->output.rotate.offset;
-    out->rotate.filesize = masscan->output.rotate.filesize;
-    out->redis.port = masscan->redis.port;
-    out->redis.ip = masscan->redis.ip;
-    out->redis.password = masscan ->redis.password;
-    out->is_banner = masscan->is_banners;               /* --banners */
-    out->is_banner_rawudp = masscan->is_banners_rawudp; /* --rawudp */
-    out->is_gmt = masscan->is_gmt;
-    out->is_interactive = masscan->output.is_interactive;
-    out->is_show_open = masscan->output.is_show_open;
-    out->is_show_closed = masscan->output.is_show_closed;
-    out->is_show_host = masscan->output.is_show_host;
-    out->is_append = masscan->output.is_append;
-    out->is_output_flush = masscan->output.is_output_flush;
-    out->xml.stylesheet = duplicate_string(masscan->output.stylesheet);
-    out->rotate.directory = duplicate_string(masscan->output.rotate.directory);
-    if (masscan->nic_count <= 1)
-        out->filename = duplicate_string(masscan->output.filename);
+    out->rotate.period = zorp->output.rotate.timeout;
+    out->rotate.offset = zorp->output.rotate.offset;
+    out->rotate.filesize = zorp->output.rotate.filesize;
+    out->redis.port = zorp->redis.port;
+    out->redis.ip = zorp->redis.ip;
+    out->redis.password = zorp ->redis.password;
+    out->is_banner = zorp->is_banners;               /* --banners */
+    out->is_banner_rawudp = zorp->is_banners_rawudp; /* --rawudp */
+    out->is_gmt = zorp->is_gmt;
+    out->is_interactive = zorp->output.is_interactive;
+    out->is_show_open = zorp->output.is_show_open;
+    out->is_show_closed = zorp->output.is_show_closed;
+    out->is_show_host = zorp->output.is_show_host;
+    out->is_append = zorp->output.is_append;
+    out->is_output_flush = zorp->output.is_output_flush;
+    out->xml.stylesheet = duplicate_string(zorp->output.stylesheet);
+    out->rotate.directory = duplicate_string(zorp->output.rotate.directory);
+    if (zorp->nic_count <= 1)
+        out->filename = duplicate_string(zorp->output.filename);
     else
-        out->filename = indexed_filename(masscan->output.filename, thread_index);
+        out->filename = indexed_filename(zorp->output.filename, thread_index);
 
     for (i=0; i<8; i++) {
-        out->src[i] = masscan->nic[i].src;
+        out->src[i] = zorp->nic[i].src;
     }
 
     /*
      * Link the appropriate output module.
      * TODO: support multiple output modules
      */
-    out->format = masscan->output.format;
+    out->format = zorp->output.format;
     switch (out->format) {
     case Output_List:
         out->funcs = &text_output;
@@ -476,12 +476,12 @@ output_create(const struct Masscan *masscan, unsigned thread_index)
      * so that we can immediately notify the user of an error, rather than
      * waiting midway through a long scan and have it fail.
      */
-    if (masscan->output.filename[0] && out->funcs != &null_output) {
+    if (zorp->output.filename[0] && out->funcs != &null_output) {
         FILE *fp;
 
-        fp = open_rotate(out, masscan->output.filename);
+        fp = open_rotate(out, zorp->output.filename);
         if (fp == NULL) {
-            perror(masscan->output.filename);
+            perror(zorp->output.filename);
             exit(1);
         }
 
@@ -494,7 +494,7 @@ output_create(const struct Masscan *masscan, unsigned thread_index)
      * this time will be set at "infinity" in the future.
      * TODO: this code isn't Y2036 compliant.
      */
-    if (masscan->output.rotate.timeout == 0) {
+    if (zorp->output.rotate.timeout == 0) {
         /* TODO: how does one find the max time_t value??*/
         out->rotate.next = (time_t)LONG_MAX;
     } else {

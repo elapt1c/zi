@@ -255,7 +255,7 @@ pixie_nanotime(void)
 #endif
 
 /*
- * Timing is incredibly importatn to masscan because we need to throttle
+ * Timing is incredibly importatn to zorp because we need to throttle
  * how fast we spew packets. Every platofrm has slightly different timing
  * even given standard APIs. We need to make sure we have an accurate
  * timing function.

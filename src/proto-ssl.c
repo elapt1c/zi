@@ -1241,7 +1241,7 @@ ssl_hello(const void *templ)
     px[13] = (unsigned char)(now>> 8);
     px[14] = (unsigned char)(now>> 0);
     
-    /* create a pattern to make this detectable as specifically masscan */
+    /* create a pattern to make this detectable as specifically zorp */
     for (i=4; i<32; i++) {
         static const uint64_t key[2] = {0,0};
         unsigned val = i+now;

@@ -1,5 +1,5 @@
-#ifndef MASSCAN_APP_H
-#define MASSCAN_APP_H
+#ifndef ZORP_APP_H
+#define ZORP_APP_H
 
 /*
  * WARNING: these constants are used in files, so don't change the values.
@@ -52,7 +52,7 @@ const char *
 zorpinvader_app_to_string(enum ApplicationProtocol proto);
 
 enum ApplicationProtocol
-masscan_string_to_app(const char *str);
+zorp_string_to_app(const char *str);
 
 int
 zorpinvader_app_selftest(void);

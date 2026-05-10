@@ -81,29 +81,29 @@ grepable_out_open(struct Output *out, FILE *fp)
     //%a %b %d %H:%M:%S %Y
     strftime(timestamp, sizeof(timestamp), "%c", &tm);
 
-    fprintf(fp, "# Masscan " ZORPINVADER_VERSION " scan initiated %s\n", 
+    fprintf(fp, "# Zorp " ZORPINVADER_VERSION " scan initiated %s\n", 
                 timestamp);
 
-    count = count_type(&out->masscan->targets.ports, Templ_TCP, Templ_TCP_last);
+    count = count_type(&out->zorp->targets.ports, Templ_TCP, Templ_TCP_last);
     fprintf(fp, "# Ports scanned: TCP(%u;", count);
     if (count)
-        print_port_list(&out->masscan->targets.ports, Templ_TCP, fp);
+        print_port_list(&out->zorp->targets.ports, Templ_TCP, fp);
 
-    count = count_type(&out->masscan->targets.ports, Templ_UDP, Templ_UDP_last);
+    count = count_type(&out->zorp->targets.ports, Templ_UDP, Templ_UDP_last);
     fprintf(fp, ") UDP(%u;", count);
     if (count)
-        print_port_list(&out->masscan->targets.ports, Templ_UDP, fp);
+        print_port_list(&out->zorp->targets.ports, Templ_UDP, fp);
     
     
-    count = count_type(&out->masscan->targets.ports, Templ_SCTP, Templ_SCTP_last);
+    count = count_type(&out->zorp->targets.ports, Templ_SCTP, Templ_SCTP_last);
     fprintf(fp, ") SCTP(%u;", count);
     if (count)
-        print_port_list(&out->masscan->targets.ports, Templ_SCTP, fp);
+        print_port_list(&out->zorp->targets.ports, Templ_SCTP, fp);
 
-    count = count_type(&out->masscan->targets.ports, Templ_Oproto_first, Templ_Oproto_last);
+    count = count_type(&out->zorp->targets.ports, Templ_Oproto_first, Templ_Oproto_last);
     fprintf(fp, ") PROTOCOLS(%u;", count);
     if (count)
-        print_port_list(&out->masscan->targets.ports, Templ_Oproto_first, fp);
+        print_port_list(&out->zorp->targets.ports, Templ_Oproto_first, fp);
     
     fprintf(fp, ")\n");
 }
@@ -128,7 +128,7 @@ grepable_out_close(struct Output *out, FILE *fp)
     //%a %b %d %H:%M:%S %Y
     strftime(timestamp, sizeof(timestamp), "%c", &tm);
 
-    fprintf(fp, "# Masscan done at %s\n", 
+    fprintf(fp, "# Zorp done at %s\n", 
                 timestamp);
 }
 

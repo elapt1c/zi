@@ -427,7 +427,7 @@ tcpcon_set_parameter(struct TCP_ConnectionTable *tcpcon,
      * You can reset your user-agent here. Whenever I do a scan, I always
      * reset my user-agent. That's now you know it's not me scanning
      * you on the open Internet -- I would never use the default user-agent
-     * string built into masscan
+     * string built into zorp
      */
     if (name_equals(name, "http-user-agent")) {
         banner_http.hello_length = http_change_field(

@@ -1,5 +1,5 @@
 /*
-    Read in the configuration for MASSCAN.
+    Read in the configuration for ZORP.
 
     Configuration parameters can be read either from the command-line
     or a configuration file. Long parameters of the --xxxx variety have
@@ -65,7 +65,7 @@ static struct Range top_ports_sctp[] = {
 /***************************************************************************
  ***************************************************************************/
 void
-masscan_usage(void)
+zorp_usage(void)
 {
     printf("usage: zorpinvader [options]\n");
     printf("\n");
@@ -96,7 +96,7 @@ print_version()
     printf("\n");
     printf("ZorpInvader version %s ( %s )\n",
         ZORPINVADER_VERSION,
-        "https://github.com/robertdavidgraham/masscan"
+        "https://github.com/robertdavidgraham/zorp"
         );
     printf("Compiled on: %s %s\n", __DATE__, __TIME__);
 
@@ -181,7 +181,7 @@ print_version()
 static void
 print_nmap_help(void)
 {
-    printf("ZorpInvader (https://github.com/robertdavidgraham/masscan)\n"
+    printf("ZorpInvader (https://github.com/robertdavidgraham/zorp)\n"
 "Usage: zorpinvader [Options]\n"
 "TARGET SPECIFICATION:\n"
 "  Can pass only IPv4/IPv6 address, CIDR networks, or ranges (non-nmap style)\n"
@@ -231,10 +231,10 @@ print_nmap_help(void)
 "  -V: Print version number\n"
 "  -h: Print this help summary page.\n"
 "EXAMPLES:\n"
-"  masscan -v -sS 192.168.0.0/16 10.0.0.0/8 -p 80\n"
-"  masscan 23.0.0.0/0 -p80 --banners -output-format binary --output-filename internet.scan\n"
-"  masscan --open --banners --readscan internet.scan -oG internet_scan.grepable\n"
-"SEE (https://github.com/robertdavidgraham/masscan) FOR MORE HELP\n"
+"  zorp -v -sS 192.168.0.0/16 10.0.0.0/8 -p 80\n"
+"  zorp 23.0.0.0/0 -p80 --banners -output-format binary --output-filename internet.scan\n"
+"  zorp --open --banners --readscan internet.scan -oG internet_scan.grepable\n"
+"SEE (https://github.com/robertdavidgraham/zorp) FOR MORE HELP\n"
 "\n");
 }
 
@@ -291,29 +291,29 @@ count_cidr6_bits(struct Range6 *range, bool *exact)
  * Echoes the configuration for one NIC
  ***************************************************************************/
 static void
-masscan_echo_nic(struct Masscan *masscan, FILE *fp, unsigned i)
+zorp_echo_nic(struct Zorp *zorp, FILE *fp, unsigned i)
 {
     char idx_str[64];
 
     /* If we have only one adapter, then don't print the array indexes.
      * Otherwise, we need to print the array indexes to distinguish
      * the NICs from each other */
-    if (masscan->nic_count <= 1)
+    if (zorp->nic_count <= 1)
         idx_str[0] = '\0';
     else
         snprintf(idx_str, sizeof(idx_str), "[%u]", i);
 
-    if (masscan->nic[i].ifname[0])
-        fprintf(fp, "adapter%s = %s\n", idx_str, masscan->nic[i].ifname);
+    if (zorp->nic[i].ifname[0])
+        fprintf(fp, "adapter%s = %s\n", idx_str, zorp->nic[i].ifname);
     
-    if (masscan->nic[i].src.ipv4.first != 0 || masscan->nic[i].src.ipv4.last != 0) {
+    if (zorp->nic[i].src.ipv4.first != 0 || zorp->nic[i].src.ipv4.last != 0) {
 
         /**
          * FIX 495.1 for issue #495: Single adapter-ip is not saved at all
          *
          * The else case handles a simple invocation of one adapter-ip:
          *
-         * 1. masscan ... --adapter-ip 1.2.3.1 ...   [BROKEN]
+         * 1. zorp ... --adapter-ip 1.2.3.1 ...   [BROKEN]
          *
          * This looks like it was just copy pasta/typo. If the first ip is the same
          * as the last ip, it is a single adapter-ip
@@ -321,14 +321,14 @@ masscan_echo_nic(struct Masscan *masscan, FILE *fp, unsigned i)
          * This never worked as it was before so paused.conf would never save the
          * adapter-ip as it fell through this if/else if into nowhere. It probably
          * went undetected because in simple environments and/or in simple scans,
-         * masscan is able to intelligently determine the adapter-ip and only
+         * zorp is able to intelligently determine the adapter-ip and only
          * advanced usage requires overriding the chosen value. In addition to
          * that, it is probably relatively uncommon to interrupt a scan as not many
          * users are doing multi-hour / multi-day scans, having them paused and
          * then resuming them (apparently)
          */
-        if (masscan->nic[i].src.ipv4.first == masscan->nic[i].src.ipv4.last) {
-            ipaddress_formatted_t fmt = ipv4address_fmt(masscan->nic[i].src.ipv4.first);
+        if (zorp->nic[i].src.ipv4.first == zorp->nic[i].src.ipv4.last) {
+            ipaddress_formatted_t fmt = ipv4address_fmt(zorp->nic[i].src.ipv4.first);
             fprintf(fp, "adapter-ip%s = %s\n", idx_str, fmt.string);
         }
 
@@ -342,8 +342,8 @@ masscan_echo_nic(struct Masscan *masscan, FILE *fp, unsigned i)
          *
          * Examples of the multiple/range case:
          *
-         * 1. masscan ... --adapter-ip 1.2.3.1-1.2.3.2 ...   [BROKEN]
-         * 2. masscan ... --adapter-ip 1.2.3.1-1.2.3.4 ...   [OK]
+         * 1. zorp ... --adapter-ip 1.2.3.1-1.2.3.2 ...   [BROKEN]
+         * 2. zorp ... --adapter-ip 1.2.3.1-1.2.3.4 ...   [OK]
          *
          * If the range spans exactly two adapter-ips, it will not hit the range
          * printing logic case here because of an off-by-one
@@ -351,38 +351,38 @@ masscan_echo_nic(struct Masscan *masscan, FILE *fp, unsigned i)
          * Changing it from < to <= fixes that issue and both of the above cases
          * now print the correct range as expected
          */
-        else if (masscan->nic[i].src.ipv4.first < masscan->nic[i].src.ipv4.last) {
-            ipaddress_formatted_t fmt1 = ipv4address_fmt(masscan->nic[i].src.ipv4.first);
-            ipaddress_formatted_t fmt2 = ipv4address_fmt(masscan->nic[i].src.ipv4.last);
+        else if (zorp->nic[i].src.ipv4.first < zorp->nic[i].src.ipv4.last) {
+            ipaddress_formatted_t fmt1 = ipv4address_fmt(zorp->nic[i].src.ipv4.first);
+            ipaddress_formatted_t fmt2 = ipv4address_fmt(zorp->nic[i].src.ipv4.last);
             fprintf(fp, "adapter-ip%s = %s-%s\n", idx_str, fmt1.string, fmt2.string);
         }
     }
 
-    if (masscan->nic[i].src.ipv6.range) {
-        if (ipv6address_is_lessthan(masscan->nic[i].src.ipv6.first, masscan->nic[i].src.ipv6.last)) {
-            ipaddress_formatted_t fmt1 = ipv6address_fmt(masscan->nic[i].src.ipv6.first);
-            ipaddress_formatted_t fmt2 = ipv6address_fmt(masscan->nic[i].src.ipv6.last);
+    if (zorp->nic[i].src.ipv6.range) {
+        if (ipv6address_is_lessthan(zorp->nic[i].src.ipv6.first, zorp->nic[i].src.ipv6.last)) {
+            ipaddress_formatted_t fmt1 = ipv6address_fmt(zorp->nic[i].src.ipv6.first);
+            ipaddress_formatted_t fmt2 = ipv6address_fmt(zorp->nic[i].src.ipv6.last);
             fprintf(fp, "adapter-ip%s = %s-%s\n", idx_str, fmt1.string, fmt2.string);
         } else {
-            ipaddress_formatted_t fmt = ipv6address_fmt(masscan->nic[i].src.ipv6.first);
+            ipaddress_formatted_t fmt = ipv6address_fmt(zorp->nic[i].src.ipv6.first);
             fprintf(fp, "adapter-ip%s = %s\n", idx_str, fmt.string);
         }
     }
 
-    if (masscan->nic[i].my_mac_count) {
-        ipaddress_formatted_t fmt = macaddress_fmt(masscan->nic[i].source_mac);
+    if (zorp->nic[i].my_mac_count) {
+        ipaddress_formatted_t fmt = macaddress_fmt(zorp->nic[i].source_mac);
         fprintf(fp, "adapter-mac%s = %s\n", idx_str, fmt.string);
     }
-    if (masscan->nic[i].router_ip) {
-        ipaddress_formatted_t fmt = ipv4address_fmt(masscan->nic[i].router_ip);
+    if (zorp->nic[i].router_ip) {
+        ipaddress_formatted_t fmt = ipv4address_fmt(zorp->nic[i].router_ip);
         fprintf(fp, "router-ip%s = %s\n", idx_str, fmt.string);
     }
-    if (!macaddress_is_zero(masscan->nic[i].router_mac_ipv4)) {
-        ipaddress_formatted_t fmt =  macaddress_fmt(masscan->nic[i].router_mac_ipv4);
+    if (!macaddress_is_zero(zorp->nic[i].router_mac_ipv4)) {
+        ipaddress_formatted_t fmt =  macaddress_fmt(zorp->nic[i].router_mac_ipv4);
         fprintf(fp, "router-mac-ipv4%s = %s\n", idx_str, fmt.string);
     }
-    if (!macaddress_is_zero(masscan->nic[i].router_mac_ipv6)) {
-        ipaddress_formatted_t fmt = macaddress_fmt(masscan->nic[i].router_mac_ipv6);
+    if (!macaddress_is_zero(zorp->nic[i].router_mac_ipv6)) {
+        ipaddress_formatted_t fmt = macaddress_fmt(zorp->nic[i].router_mac_ipv6);
         fprintf(fp, "router-mac-ipv6%s = %s\n", idx_str, fmt.string);
     }
 
@@ -392,7 +392,7 @@ masscan_echo_nic(struct Masscan *masscan, FILE *fp, unsigned i)
 /***************************************************************************
  ***************************************************************************/
 void
-masscan_save_state(struct Masscan *masscan)
+zorp_save_state(struct Zorp *zorp)
 {
     char filename[512];
     FILE *fp;
@@ -410,7 +410,7 @@ masscan_save_state(struct Masscan *masscan)
     }
 
     
-    masscan_echo(masscan, fp, 0);
+    zorp_echo(zorp, fp, 0);
 
     fclose(fp);
 }
@@ -893,7 +893,7 @@ ARRAY(const char *rhs)
  * Called if user specified `--top-ports` on the command-line.
  */
 static void
-config_top_ports(struct Masscan *masscan, unsigned maxports)
+config_top_ports(struct Zorp *zorp, unsigned maxports)
 {
     unsigned i;
     static const unsigned short top_udp_ports[] = {
@@ -1035,12 +1035,12 @@ config_top_ports(struct Masscan *masscan, unsigned maxports)
         52848,52869,54045,54328,55055,55056,55555,55600,56737,56738,57294,
         57797,58080,60020,60443,61532,61900,62078,63331,64623,64680,65000,
         65129,65389};
-    struct RangeList *ports = &masscan->targets.ports;
+    struct RangeList *ports = &zorp->targets.ports;
     static const unsigned max_tcp_ports = sizeof(top_tcp_ports)/sizeof(top_tcp_ports[0]);
     static const unsigned max_udp_ports = sizeof(top_udp_ports)/sizeof(top_udp_ports[0]);
 
 
-    if (masscan->scan_type.tcp) {
+    if (zorp->scan_type.tcp) {
         LOG(2, "[+] adding TCP top-ports = %u\n", maxports);
         for (i=0; i<maxports && i<max_tcp_ports; i++)
             rangelist_add_range_tcp(ports,
@@ -1048,7 +1048,7 @@ config_top_ports(struct Masscan *masscan, unsigned maxports)
                                 top_tcp_ports[i]);
     }
 
-    if (masscan->scan_type.udp) {
+    if (zorp->scan_type.udp) {
         LOG(2, "[+] adding UDP top-ports = %u\n", maxports);
         for (i=0; i<maxports && i<max_udp_ports; i++)
             rangelist_add_range_udp(ports,
@@ -1078,98 +1078,98 @@ isInteger(const char *value)
 
 /***************************************************************************
  ***************************************************************************/
-typedef int (*SET_PARAMETER)(struct Masscan *masscan, const char *name, const char *value);
+typedef int (*SET_PARAMETER)(struct Zorp *zorp, const char *name, const char *value);
 enum {CONF_OK, CONF_WARN, CONF_ERR};
 
-static int SET_arpscan(struct Masscan *masscan, const char *name, const char *value)
+static int SET_arpscan(struct Zorp *zorp, const char *name, const char *value)
 {
     struct Range range;
 
     UNUSEDPARM(name);
     UNUSEDPARM(value);
 
-    if (masscan->echo) {
-        if (masscan->scan_type.arp || masscan->echo_all)
-            fprintf(masscan->echo, "arpscan = %s\n", masscan->scan_type.arp?"true":"false");
+    if (zorp->echo) {
+        if (zorp->scan_type.arp || zorp->echo_all)
+            fprintf(zorp->echo, "arpscan = %s\n", zorp->scan_type.arp?"true":"false");
         return 0;
     }
     range.begin = Templ_ARP;
     range.end = Templ_ARP;
-    rangelist_add_range(&masscan->targets.ports, range.begin, range.end);
-    rangelist_sort(&masscan->targets.ports);
-    masscan_set_parameter(masscan, "router-mac", "ff-ff-ff-ff-ff-ff");
-    masscan->scan_type.arp = 1;
+    rangelist_add_range(&zorp->targets.ports, range.begin, range.end);
+    rangelist_sort(&zorp->targets.ports);
+    zorp_set_parameter(zorp, "router-mac", "ff-ff-ff-ff-ff-ff");
+    zorp->scan_type.arp = 1;
     LOG(5, "--arpscan\n");
     return CONF_OK;
 }
 
-static int SET_banners(struct Masscan *masscan, const char *name, const char *value)
+static int SET_banners(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->is_banners || masscan->echo_all)
-            fprintf(masscan->echo, "banners = %s\n", masscan->is_banners?"true":"false");
+    if (zorp->echo) {
+        if (zorp->is_banners || zorp->echo_all)
+            fprintf(zorp->echo, "banners = %s\n", zorp->is_banners?"true":"false");
        return 0;
     }
-    masscan->is_banners = parseBoolean(value);
+    zorp->is_banners = parseBoolean(value);
     return CONF_OK;
 }
 
-static int SET_banners_rawudp(struct Masscan *masscan, const char *name, const char *value)
+static int SET_banners_rawudp(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->is_banners_rawudp || masscan->echo_all)
-            fprintf(masscan->echo, "rawudp = %s\n", masscan->is_banners_rawudp?"true":"false");
+    if (zorp->echo) {
+        if (zorp->is_banners_rawudp || zorp->echo_all)
+            fprintf(zorp->echo, "rawudp = %s\n", zorp->is_banners_rawudp?"true":"false");
        return 0;
     }
-    masscan->is_banners_rawudp = parseBoolean(value);
-    if (masscan->is_banners_rawudp)
-        masscan->is_banners = true;
+    zorp->is_banners_rawudp = parseBoolean(value);
+    if (zorp->is_banners_rawudp)
+        zorp->is_banners = true;
     return CONF_OK;
 }
 
-static int SET_capture(struct Masscan *masscan, const char *name, const char *value)
+static int SET_capture(struct Zorp *zorp, const char *name, const char *value)
 {
-    if (masscan->echo) {
-        if (!masscan->is_capture_cert || masscan->echo_all)
-            fprintf(masscan->echo, "%scapture = cert\n", masscan->is_capture_cert?"":"no");
-        if (!masscan->is_capture_servername || masscan->echo_all)
-            fprintf(masscan->echo, "%scapture = servername\n", masscan->is_capture_servername?"":"no");
-        if (masscan->is_capture_html || masscan->echo_all)
-            fprintf(masscan->echo, "%scapture = html\n", masscan->is_capture_html?"":"no");
-        if (masscan->is_capture_heartbleed || masscan->echo_all)
-            fprintf(masscan->echo, "%scapture = heartbleed\n", masscan->is_capture_heartbleed?"":"no");
-        if (masscan->is_capture_ticketbleed || masscan->echo_all)
-            fprintf(masscan->echo, "%scapture = ticketbleed\n", masscan->is_capture_ticketbleed?"":"no");
+    if (zorp->echo) {
+        if (!zorp->is_capture_cert || zorp->echo_all)
+            fprintf(zorp->echo, "%scapture = cert\n", zorp->is_capture_cert?"":"no");
+        if (!zorp->is_capture_servername || zorp->echo_all)
+            fprintf(zorp->echo, "%scapture = servername\n", zorp->is_capture_servername?"":"no");
+        if (zorp->is_capture_html || zorp->echo_all)
+            fprintf(zorp->echo, "%scapture = html\n", zorp->is_capture_html?"":"no");
+        if (zorp->is_capture_heartbleed || zorp->echo_all)
+            fprintf(zorp->echo, "%scapture = heartbleed\n", zorp->is_capture_heartbleed?"":"no");
+        if (zorp->is_capture_ticketbleed || zorp->echo_all)
+            fprintf(zorp->echo, "%scapture = ticketbleed\n", zorp->is_capture_ticketbleed?"":"no");
         return 0;
     }
     if (EQUALS("capture", name)) {
         if (EQUALS("cert", value))
-            masscan->is_capture_cert = 1;
+            zorp->is_capture_cert = 1;
         else if (EQUALS("servername", value))
-            masscan->is_capture_servername = 1;
+            zorp->is_capture_servername = 1;
         else if (EQUALS("html", value))
-            masscan->is_capture_html = 1;
+            zorp->is_capture_html = 1;
         else if (EQUALS("heartbleed", value))
-            masscan->is_capture_heartbleed = 1;
+            zorp->is_capture_heartbleed = 1;
         else if (EQUALS("ticketbleed", value))
-            masscan->is_capture_ticketbleed = 1;
+            zorp->is_capture_ticketbleed = 1;
         else {
             fprintf(stderr, "FAIL: %s: unknown capture type\n", value);
             return CONF_ERR;
         }
     } else if (EQUALS("nocapture", name)) {
         if (EQUALS("cert", value))
-            masscan->is_capture_cert = 0;
+            zorp->is_capture_cert = 0;
         else if (EQUALS("servername", value))
-            masscan->is_capture_servername = 0;
+            zorp->is_capture_servername = 0;
         else if (EQUALS("html", value))
-            masscan->is_capture_html = 0;
+            zorp->is_capture_html = 0;
         else if (EQUALS("heartbleed", value))
-            masscan->is_capture_heartbleed = 0;
+            zorp->is_capture_heartbleed = 0;
         else if (EQUALS("ticketbleed", value))
-            masscan->is_capture_ticketbleed = 0;
+            zorp->is_capture_ticketbleed = 0;
         else {
             fprintf(stderr, "FAIL: %s: unknown nocapture type\n", value);
             return CONF_ERR;
@@ -1178,25 +1178,25 @@ static int SET_capture(struct Masscan *masscan, const char *name, const char *va
     return CONF_OK;
 }
 
-static int SET_hello(struct Masscan *masscan, const char *name, const char *value)
+static int SET_hello(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->is_hello_ssl) {
-            fprintf(masscan->echo, "hello = ssl\n");
-        } else if (masscan->is_hello_smbv1) {
-            fprintf(masscan->echo, "hello = smbv1\n");
-        } else if (masscan->is_hello_http) {
-            fprintf(masscan->echo, "hello = http\n");
+    if (zorp->echo) {
+        if (zorp->is_hello_ssl) {
+            fprintf(zorp->echo, "hello = ssl\n");
+        } else if (zorp->is_hello_smbv1) {
+            fprintf(zorp->echo, "hello = smbv1\n");
+        } else if (zorp->is_hello_http) {
+            fprintf(zorp->echo, "hello = http\n");
         }
         return 0;
     }
     if (EQUALS("ssl", value))
-        masscan->is_hello_ssl = 1;
+        zorp->is_hello_ssl = 1;
     else if (EQUALS("smbv1", value))
-        masscan->is_hello_smbv1 = 1;
+        zorp->is_hello_smbv1 = 1;
     else if (EQUALS("http", value))
-        masscan->is_hello_http = 1;
+        zorp->is_hello_http = 1;
     else {
         fprintf(stderr, "FAIL: %s: unknown hello type\n", value);
         return CONF_ERR;
@@ -1204,7 +1204,7 @@ static int SET_hello(struct Masscan *masscan, const char *name, const char *valu
     return CONF_OK;
 }
 
-static int SET_hello_file(struct Masscan *masscan, const char *name, const char *value)
+static int SET_hello_file(struct Zorp *zorp, const char *name, const char *value)
 {
     unsigned index;
     FILE *fp;
@@ -1214,7 +1214,7 @@ static int SET_hello_file(struct Masscan *masscan, const char *name, const char 
     size_t bytes_encoded;
     char foo[64];
 
-    if (masscan->echo) {
+    if (zorp->echo) {
         //Echoed as a string "hello-string" that was originally read
         //from a file, not the "hello-filename"
         return 0;
@@ -1248,20 +1248,20 @@ static int SET_hello_file(struct Masscan *masscan, const char *name, const char 
     
     snprintf(foo, sizeof(foo), "hello-string[%u]", (unsigned)index);
     
-    masscan_set_parameter(masscan, foo, buf2);
+    zorp_set_parameter(zorp, foo, buf2);
 
     return CONF_OK;
 }
 
-static int SET_hello_string(struct Masscan *masscan, const char *name, const char *value)
+static int SET_hello_string(struct Zorp *zorp, const char *name, const char *value)
 {
     unsigned index;
     char *value2;
     struct TcpCfgPayloads *pay;
 
-    if (masscan->echo) {
-        for (pay = masscan->payloads.tcp; pay; pay = pay->next) {
-            fprintf(masscan->echo, "hello-string[%u] = %s\n",
+    if (zorp->echo) {
+        for (pay = zorp->payloads.tcp; pay; pay = pay->next) {
+            fprintf(zorp->echo, "hello-string[%u] = %s\n",
                     pay->port, pay->payload_base64);
         }
         return 0;
@@ -1280,37 +1280,37 @@ static int SET_hello_string(struct Masscan *masscan, const char *name, const cha
     
     pay->payload_base64 = value2;
     pay->port = index;
-    pay->next = masscan->payloads.tcp;
-    masscan->payloads.tcp = pay;
+    pay->next = zorp->payloads.tcp;
+    zorp->payloads.tcp = pay;
     return CONF_OK;
 }
 
-static int SET_hello_timeout(struct Masscan *masscan, const char *name, const char *value)
+static int SET_hello_timeout(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->tcp_hello_timeout || masscan->echo_all)
-            fprintf(masscan->echo, "hello-timeout = %u\n", masscan->tcp_hello_timeout);
+    if (zorp->echo) {
+        if (zorp->tcp_hello_timeout || zorp->echo_all)
+            fprintf(zorp->echo, "hello-timeout = %u\n", zorp->tcp_hello_timeout);
         return 0;
     }
-    masscan->tcp_hello_timeout = (unsigned)parseInt(value);
+    zorp->tcp_hello_timeout = (unsigned)parseInt(value);
     return CONF_OK;
 }
 
-static int SET_http_cookie(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_cookie(struct Zorp *zorp, const char *name, const char *value)
 {
     unsigned char *newvalue;
     size_t value_length;
 
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.cookies_count || masscan->echo_all) {
+    if (zorp->echo) {
+        if (zorp->http.cookies_count || zorp->echo_all) {
             size_t i;
-            for (i=0; i<masscan->http.cookies_count; i++) {
-                fprintf(masscan->echo,
+            for (i=0; i<zorp->http.cookies_count; i++) {
+                fprintf(zorp->echo,
                         "http-cookie = %.*s\n",
-                        (unsigned)masscan->http.cookies[i].value_length,
-                        masscan->http.cookies[i].value);
+                        (unsigned)zorp->http.cookies[i].value_length,
+                        zorp->http.cookies[i].value);
             }
         }
         return 0;
@@ -1323,33 +1323,33 @@ static int SET_http_cookie(struct Masscan *masscan, const char *name, const char
     newvalue[value_length] = '\0';
 
     /* Add to our list of headers */
-    if (masscan->http.cookies_count < sizeof(masscan->http.cookies)/sizeof(masscan->http.cookies[0])) {
-        size_t x = masscan->http.cookies_count;
-        masscan->http.cookies[x].value = newvalue;
-        masscan->http.cookies[x].value_length = value_length;
-        masscan->http.cookies_count++;
+    if (zorp->http.cookies_count < sizeof(zorp->http.cookies)/sizeof(zorp->http.cookies[0])) {
+        size_t x = zorp->http.cookies_count;
+        zorp->http.cookies[x].value = newvalue;
+        zorp->http.cookies[x].value_length = value_length;
+        zorp->http.cookies_count++;
     }
     return CONF_OK;
 }
 
-static int SET_http_header(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_header(struct Zorp *zorp, const char *name, const char *value)
 {
     unsigned name_length;
     char *newname;
     unsigned char *newvalue;
     size_t value_length;
 
-    if (masscan->echo) {
-        if (masscan->http.headers_count || masscan->echo_all) {
+    if (zorp->echo) {
+        if (zorp->http.headers_count || zorp->echo_all) {
             size_t i;
-            for (i=0; i<masscan->http.headers_count; i++) {
-                if (masscan->http.headers[i].name == 0)
+            for (i=0; i<zorp->http.headers_count; i++) {
+                if (zorp->http.headers[i].name == 0)
                     continue;
-                fprintf(masscan->echo,
+                fprintf(zorp->echo,
                         "http-header = %s:%.*s\n",
-                        masscan->http.headers[i].name,
-                        (unsigned)masscan->http.headers[i].value_length,
-                        masscan->http.headers[i].value);
+                        zorp->http.headers[i].name,
+                        (unsigned)zorp->http.headers[i].value_length,
+                        zorp->http.headers[i].value);
             }
         }
         return 0;
@@ -1397,132 +1397,132 @@ static int SET_http_header(struct Masscan *masscan, const char *name, const char
     newvalue[value_length] = '\0';
 
     /* Add to our list of headers */
-    if (masscan->http.headers_count < sizeof(masscan->http.headers)/sizeof(masscan->http.headers[0])) {
-        size_t x = masscan->http.headers_count;
-        masscan->http.headers[x].name = newname;
-        masscan->http.headers[x].value = newvalue;
-        masscan->http.headers[x].value_length = value_length;
-        masscan->http.headers_count++;
+    if (zorp->http.headers_count < sizeof(zorp->http.headers)/sizeof(zorp->http.headers[0])) {
+        size_t x = zorp->http.headers_count;
+        zorp->http.headers[x].name = newname;
+        zorp->http.headers[x].value = newvalue;
+        zorp->http.headers[x].value_length = value_length;
+        zorp->http.headers_count++;
     }
     return CONF_OK;
 }
 
-static int SET_http_method(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_method(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.method || masscan->echo_all)
-            fprintf(masscan->echo, "http-method = %.*s\n", (unsigned)masscan->http.method_length, masscan->http.method);
+    if (zorp->echo) {
+        if (zorp->http.method || zorp->echo_all)
+            fprintf(zorp->echo, "http-method = %.*s\n", (unsigned)zorp->http.method_length, zorp->http.method);
         return 0;
     }
-    if (masscan->http.method)
-        free(masscan->http.method);
-    masscan->http.method_length = strlen(value);
-    masscan->http.method = MALLOC(masscan->http.method_length+1);
-    memcpy(masscan->http.method, value, masscan->http.method_length+1);
+    if (zorp->http.method)
+        free(zorp->http.method);
+    zorp->http.method_length = strlen(value);
+    zorp->http.method = MALLOC(zorp->http.method_length+1);
+    memcpy(zorp->http.method, value, zorp->http.method_length+1);
     return CONF_OK;
 }
-static int SET_http_url(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_url(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.url || masscan->echo_all)
-            fprintf(masscan->echo, "http-url = %.*s\n", (unsigned)masscan->http.url_length, masscan->http.url);
+    if (zorp->echo) {
+        if (zorp->http.url || zorp->echo_all)
+            fprintf(zorp->echo, "http-url = %.*s\n", (unsigned)zorp->http.url_length, zorp->http.url);
         return 0;
     }
-    if (masscan->http.url)
-        free(masscan->http.url);
-    masscan->http.url_length = strlen(value);
-    masscan->http.url = MALLOC(masscan->http.url_length+1);
-    memcpy(masscan->http.url, value, masscan->http.url_length+1);
+    if (zorp->http.url)
+        free(zorp->http.url);
+    zorp->http.url_length = strlen(value);
+    zorp->http.url = MALLOC(zorp->http.url_length+1);
+    memcpy(zorp->http.url, value, zorp->http.url_length+1);
     return CONF_OK;
 }
-static int SET_http_version(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_version(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.version || masscan->echo_all)
-            fprintf(masscan->echo, "http-version = %.*s\n", (unsigned)masscan->http.version_length, masscan->http.version);
+    if (zorp->echo) {
+        if (zorp->http.version || zorp->echo_all)
+            fprintf(zorp->echo, "http-version = %.*s\n", (unsigned)zorp->http.version_length, zorp->http.version);
         return 0;
     }
-    if (masscan->http.version)
-        free(masscan->http.version);
-    masscan->http.version_length = strlen(value);
-    masscan->http.version = MALLOC(masscan->http.version_length+1);
-    memcpy(masscan->http.version, value, masscan->http.version_length+1);
+    if (zorp->http.version)
+        free(zorp->http.version);
+    zorp->http.version_length = strlen(value);
+    zorp->http.version = MALLOC(zorp->http.version_length+1);
+    memcpy(zorp->http.version, value, zorp->http.version_length+1);
     return CONF_OK;
 }
-static int SET_http_host(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_host(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.host || masscan->echo_all)
-            fprintf(masscan->echo, "http-host = %.*s\n", (unsigned)masscan->http.host_length, masscan->http.host);
+    if (zorp->echo) {
+        if (zorp->http.host || zorp->echo_all)
+            fprintf(zorp->echo, "http-host = %.*s\n", (unsigned)zorp->http.host_length, zorp->http.host);
         return 0;
     }
-    if (masscan->http.host)
-        free(masscan->http.host);
-    masscan->http.host_length = strlen(value);
-    masscan->http.host = MALLOC(masscan->http.host_length+1);
-    memcpy(masscan->http.host, value, masscan->http.host_length+1);
+    if (zorp->http.host)
+        free(zorp->http.host);
+    zorp->http.host_length = strlen(value);
+    zorp->http.host = MALLOC(zorp->http.host_length+1);
+    memcpy(zorp->http.host, value, zorp->http.host_length+1);
     return CONF_OK;
 }
 
-static int SET_http_user_agent(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_user_agent(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.user_agent || masscan->echo_all)
-            fprintf(masscan->echo, "http-user-agent = %.*s\n", (unsigned)masscan->http.user_agent_length, masscan->http.user_agent);
+    if (zorp->echo) {
+        if (zorp->http.user_agent || zorp->echo_all)
+            fprintf(zorp->echo, "http-user-agent = %.*s\n", (unsigned)zorp->http.user_agent_length, zorp->http.user_agent);
         return 0;
     }
-    if (masscan->http.user_agent)
-        free(masscan->http.user_agent);
-    masscan->http.user_agent_length = strlen(value);
-    masscan->http.user_agent = MALLOC(masscan->http.user_agent_length+1);
-    memcpy( masscan->http.user_agent,
+    if (zorp->http.user_agent)
+        free(zorp->http.user_agent);
+    zorp->http.user_agent_length = strlen(value);
+    zorp->http.user_agent = MALLOC(zorp->http.user_agent_length+1);
+    memcpy( zorp->http.user_agent,
             value,
-            masscan->http.user_agent_length+1
+            zorp->http.user_agent_length+1
             );
     return CONF_OK;
 }
 
-static int SET_http_payload(struct Masscan *masscan, const char *name, const char *value)
+static int SET_http_payload(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->http.payload || masscan->echo_all)
-            fprintf(masscan->echo, "http-payload = %.*s\n", (unsigned)masscan->http.payload_length, masscan->http.payload);
+    if (zorp->echo) {
+        if (zorp->http.payload || zorp->echo_all)
+            fprintf(zorp->echo, "http-payload = %.*s\n", (unsigned)zorp->http.payload_length, zorp->http.payload);
         return 0;
     }
-    masscan->http.payload_length = strlen(value);
-    masscan->http.payload = REALLOC(masscan->http.payload, masscan->http.payload_length+1);
-    memcpy( masscan->http.payload,
+    zorp->http.payload_length = strlen(value);
+    zorp->http.payload = REALLOC(zorp->http.payload, zorp->http.payload_length+1);
+    memcpy( zorp->http.payload,
             value,
-            masscan->http.payload_length+1
+            zorp->http.payload_length+1
             );
     return CONF_OK;
 }
 
-static int SET_status_ndjson(struct Masscan *masscan, const char *name, const char *value)
+static int SET_status_ndjson(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
 
-    if (masscan->echo) {
-        if (masscan->output.is_status_ndjson || masscan->echo_all)
-            fprintf(masscan->echo, "ndjson-status = %s\n", masscan->output.is_status_ndjson?"true":"false");
+    if (zorp->echo) {
+        if (zorp->output.is_status_ndjson || zorp->echo_all)
+            fprintf(zorp->echo, "ndjson-status = %s\n", zorp->output.is_status_ndjson?"true":"false");
         return 0;
     }
-    masscan->output.is_status_ndjson = parseBoolean(value);
+    zorp->output.is_status_ndjson = parseBoolean(value);
     return CONF_OK;
 }
-static int SET_status_json(struct Masscan *masscan, const char *name, const char *value)
+static int SET_status_json(struct Zorp *zorp, const char *name, const char *value)
 {
     /* NOTE: this is here just to warn people they mistyped it */
     UNUSEDPARM(name);
     UNUSEDPARM(value);
 
-    if (masscan->echo) {
+    if (zorp->echo) {
         return 0;
     }
     fprintf(stderr, "[-] FAIL: %s not supported, use --status-ndjson\n", name);
@@ -1530,141 +1530,141 @@ static int SET_status_json(struct Masscan *masscan, const char *name, const char
     return CONF_ERR;
 }
 
-static int SET_min_packet(struct Masscan *masscan, const char *name, const char *value)
+static int SET_min_packet(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->min_packet_size != 60 || masscan->echo_all)
-            fprintf(masscan->echo, "min-packet = %u\n", masscan->min_packet_size);
+    if (zorp->echo) {
+        if (zorp->min_packet_size != 60 || zorp->echo_all)
+            fprintf(zorp->echo, "min-packet = %u\n", zorp->min_packet_size);
         return 0;
     }
-    masscan->min_packet_size = (unsigned)parseInt(value);
+    zorp->min_packet_size = (unsigned)parseInt(value);
     return CONF_OK;
 }
 
 
-static int SET_nobanners(struct Masscan *masscan, const char *name, const char *value)
+static int SET_nobanners(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
+    if (zorp->echo) {
         return 0;
     }
-    masscan->is_banners = !parseBoolean(value);
+    zorp->is_banners = !parseBoolean(value);
     return CONF_OK;
 }
 
-static int SET_noreset(struct Masscan *masscan, const char *name, const char *value)
+static int SET_noreset(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->is_noreset || masscan->echo_all)
-            fprintf(masscan->echo, "noreset = %s\n", masscan->is_noreset?"true":"false");
+    if (zorp->echo) {
+        if (zorp->is_noreset || zorp->echo_all)
+            fprintf(zorp->echo, "noreset = %s\n", zorp->is_noreset?"true":"false");
         return 0;
     }
-    masscan->is_noreset = parseBoolean(value);
+    zorp->is_noreset = parseBoolean(value);
     return CONF_OK;
 }
 
-static int SET_nmap_payloads(struct Masscan *masscan, const char *name, const char *value)
+static int SET_nmap_payloads(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
     
-    if (masscan->echo) {
-        if ((masscan->payloads.nmap_payloads_filename && masscan->payloads.nmap_payloads_filename[0]) || masscan->echo_all)
-            fprintf(masscan->echo, "nmap-payloads = %s\n", masscan->payloads.nmap_payloads_filename);
+    if (zorp->echo) {
+        if ((zorp->payloads.nmap_payloads_filename && zorp->payloads.nmap_payloads_filename[0]) || zorp->echo_all)
+            fprintf(zorp->echo, "nmap-payloads = %s\n", zorp->payloads.nmap_payloads_filename);
         return 0;
     }
     
-    if (masscan->payloads.nmap_payloads_filename)
-        free(masscan->payloads.nmap_payloads_filename);
-    masscan->payloads.nmap_payloads_filename = strdup(value);
+    if (zorp->payloads.nmap_payloads_filename)
+        free(zorp->payloads.nmap_payloads_filename);
+    zorp->payloads.nmap_payloads_filename = strdup(value);
 
     return CONF_OK;
 }
 
-static int SET_nmap_service_probes(struct Masscan *masscan, const char *name, const char *value)
+static int SET_nmap_service_probes(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
     
-    if (masscan->echo) {
-        if ((masscan->payloads.nmap_service_probes_filename && masscan->payloads.nmap_service_probes_filename[0]) || masscan->echo_all)
-            fprintf(masscan->echo, "nmap-service-probes = %s\n", masscan->payloads.nmap_service_probes_filename);
+    if (zorp->echo) {
+        if ((zorp->payloads.nmap_service_probes_filename && zorp->payloads.nmap_service_probes_filename[0]) || zorp->echo_all)
+            fprintf(zorp->echo, "nmap-service-probes = %s\n", zorp->payloads.nmap_service_probes_filename);
         return 0;
     }
     
-    if (masscan->payloads.nmap_service_probes_filename)
-        free(masscan->payloads.nmap_service_probes_filename);
-    masscan->payloads.nmap_service_probes_filename = strdup(value);
+    if (zorp->payloads.nmap_service_probes_filename)
+        free(zorp->payloads.nmap_service_probes_filename);
+    zorp->payloads.nmap_service_probes_filename = strdup(value);
     
     
     return CONF_OK;
 }
 
-static int SET_offline(struct Masscan *masscan, const char *name, const char *value)
+static int SET_offline(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
 
-    if (masscan->echo) {
-        if (masscan->is_offline || masscan->echo_all)
-            fprintf(masscan->echo, "offline = %s\n", masscan->is_offline?"true":"false");
+    if (zorp->echo) {
+        if (zorp->is_offline || zorp->echo_all)
+            fprintf(zorp->echo, "offline = %s\n", zorp->is_offline?"true":"false");
         return 0;
     }
-    masscan->is_offline = parseBoolean(value);
+    zorp->is_offline = parseBoolean(value);
     return CONF_OK;
 }
 
-static int SET_output_append(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_append(struct Zorp *zorp, const char *name, const char *value)
 {
-    if (masscan->echo) {
-        if (masscan->output.is_append || masscan->echo_all)
-            fprintf(masscan->echo, "output-append = %s\n",
-                    masscan->output.is_append?"true":"false");
+    if (zorp->echo) {
+        if (zorp->output.is_append || zorp->echo_all)
+            fprintf(zorp->echo, "output-append = %s\n",
+                    zorp->output.is_append?"true":"false");
         return 0;
     }
     if (EQUALS("overwrite", name) || !parseBoolean(value))
-        masscan->output.is_append = 0;
+        zorp->output.is_append = 0;
     else
-        masscan->output.is_append = 1;
+        zorp->output.is_append = 1;
     return CONF_OK;
 }
 
-static int SET_output_flush(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_flush(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->output.is_output_flush || masscan->echo_all)
-            fprintf(masscan->echo, "output-flush = %s\n", masscan->output.is_output_flush?"true":"false");
+    if (zorp->echo) {
+        if (zorp->output.is_output_flush || zorp->echo_all)
+            fprintf(zorp->echo, "output-flush = %s\n", zorp->output.is_output_flush?"true":"false");
        return 0;
     }
-    masscan->output.is_output_flush = parseBoolean(value);
+    zorp->output.is_output_flush = parseBoolean(value);
     return CONF_OK;
 }
 
-static int SET_output_filename(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_filename(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->output.filename[0] || masscan->echo_all)
-            fprintf(masscan->echo, "output-filename = %s\n", masscan->output.filename);
+    if (zorp->echo) {
+        if (zorp->output.filename[0] || zorp->echo_all)
+            fprintf(zorp->echo, "output-filename = %s\n", zorp->output.filename);
         return 0;
     }
-    if (masscan->output.format == 0)
-        masscan->output.format = Output_XML; /*TODO: Why is the default XML?*/
-    safe_strcpy(masscan->output.filename,
-             sizeof(masscan->output.filename),
+    if (zorp->output.format == 0)
+        zorp->output.format = Output_XML; /*TODO: Why is the default XML?*/
+    safe_strcpy(zorp->output.filename,
+             sizeof(zorp->output.filename),
              value);
     return CONF_OK;
 }
 
-static int SET_output_format(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_format(struct Zorp *zorp, const char *name, const char *value)
 {
     enum OutputFormat x = 0;
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        FILE *fp = masscan->echo;
+    if (zorp->echo) {
+        FILE *fp = zorp->echo;
         ipaddress_formatted_t fmt;
-        switch (masscan->output.format) {
-            case Output_Default:    if (masscan->echo_all) fprintf(fp, "output-format = interactive\n"); break;
+        switch (zorp->output.format) {
+            case Output_Default:    if (zorp->echo_all) fprintf(fp, "output-format = interactive\n"); break;
             case Output_Interactive:fprintf(fp, "output-format = interactive\n"); break;
             case Output_List:       fprintf(fp, "output-format = list\n"); break;
             case Output_Unicornscan:fprintf(fp, "output-format = unicornscan\n"); break;
@@ -1677,13 +1677,13 @@ static int SET_output_format(struct Masscan *masscan, const char *name, const ch
             case Output_None:       fprintf(fp, "output-format = none\n"); break;
             case Output_Hostonly:   fprintf(fp, "output-format = hostonly\n"); break;
             case Output_Redis:
-                fmt = ipaddress_fmt(masscan->redis.ip);
+                fmt = ipaddress_fmt(zorp->redis.ip);
                 fprintf(fp, "output-format = redis\n");
-                fprintf(fp, "redis = %s %u\n", fmt.string, masscan->redis.port);
+                fprintf(fp, "redis = %s %u\n", fmt.string, zorp->redis.port);
                 break;
                 
             default:
-                fprintf(fp, "output-format = unknown(%u)\n", masscan->output.format);
+                fprintf(fp, "output-format = unknown(%u)\n", zorp->output.format);
                 break;
         }
         return 0;
@@ -1707,20 +1707,20 @@ static int SET_output_format(struct Masscan *masscan, const char *name, const ch
         LOG(0, "  hint: 'binary', 'xml', 'grepable', ...\n");
         return CONF_ERR;
     }
-    masscan->output.format = x;
+    zorp->output.format = x;
 
     return CONF_OK;
 }
 
-static int SET_output_noshow(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_noshow(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->echo_all) {
-            fprintf(masscan->echo, "output-noshow = %s%s%s\n",
-                    (!masscan->output.is_show_open)?"open,":"",
-                    (!masscan->output.is_show_closed)?"closed,":"",
-                    (!masscan->output.is_show_host)?"host,":""
+    if (zorp->echo) {
+        if (zorp->echo_all) {
+            fprintf(zorp->echo, "output-noshow = %s%s%s\n",
+                    (!zorp->output.is_show_open)?"open,":"",
+                    (!zorp->output.is_show_closed)?"closed,":"",
+                    (!zorp->output.is_show_host)?"host,":""
                     );
         }
         return 0;
@@ -1731,15 +1731,15 @@ static int SET_output_noshow(struct Masscan *masscan, const char *name, const ch
         if (val2_len == 0)
             break;
         if (EQUALSx("open", val2, val2_len))
-            masscan->output.is_show_open = 0;
+            zorp->output.is_show_open = 0;
         else if (EQUALSx("closed", val2, val2_len) || EQUALSx("close", val2, val2_len))
-            masscan->output.is_show_closed = 0;
+            zorp->output.is_show_closed = 0;
         else if (EQUALSx("open", val2, val2_len))
-            masscan->output.is_show_host = 0;
+            zorp->output.is_show_host = 0;
         else if (EQUALSx("all",val2,val2_len)) {
-            masscan->output.is_show_open = 0;
-            masscan->output.is_show_host = 0;
-            masscan->output.is_show_closed = 0;
+            zorp->output.is_show_open = 0;
+            zorp->output.is_show_host = 0;
+            zorp->output.is_show_closed = 0;
         }
         else {
             LOG(0, "FAIL: unknown 'noshow' spec: %.*s\n", val2_len, val2);
@@ -1752,15 +1752,15 @@ static int SET_output_noshow(struct Masscan *masscan, const char *name, const ch
     return CONF_OK;
 }
 
-static int SET_output_show(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_show(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->echo_all) {
-            fprintf(masscan->echo, "output-show = %s%s%s\n",
-                    masscan->output.is_show_open?"open,":"",
-                    masscan->output.is_show_closed?"closed,":"",
-                    masscan->output.is_show_host?"host,":""
+    if (zorp->echo) {
+        if (zorp->echo_all) {
+            fprintf(zorp->echo, "output-show = %s%s%s\n",
+                    zorp->output.is_show_open?"open,":"",
+                    zorp->output.is_show_closed?"closed,":"",
+                    zorp->output.is_show_host?"host,":""
                     );
         }
         return 0;
@@ -1771,15 +1771,15 @@ static int SET_output_show(struct Masscan *masscan, const char *name, const char
         if (val2_len == 0)
             break;
         if (EQUALSx("open", val2, val2_len))
-            masscan->output.is_show_open = 1;
+            zorp->output.is_show_open = 1;
         else if (EQUALSx("closed", val2, val2_len) || EQUALSx("close", val2, val2_len))
-            masscan->output.is_show_closed = 1;
+            zorp->output.is_show_closed = 1;
         else if (EQUALSx("open", val2, val2_len))
-            masscan->output.is_show_host = 1;
+            zorp->output.is_show_host = 1;
         else if (EQUALSx("all",val2,val2_len)) {
-            masscan->output.is_show_open = 1;
-            masscan->output.is_show_host = 1;
-            masscan->output.is_show_closed = 1;
+            zorp->output.is_show_open = 1;
+            zorp->output.is_show_host = 1;
+            zorp->output.is_show_closed = 1;
         }
         else {
             LOG(0, "FAIL: unknown 'show' spec: %.*s\n", val2_len, val2);
@@ -1791,17 +1791,17 @@ static int SET_output_show(struct Masscan *masscan, const char *name, const char
     }
     return CONF_OK;
 }
-static int SET_output_show_open(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_show_open(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
     UNUSEDPARM(value);
-    if (masscan->echo) {
+    if (zorp->echo) {
         return 0;
     }
     /* "open" "open-only" */
-    masscan->output.is_show_open = 1;
-    masscan->output.is_show_closed = 0;
-    masscan->output.is_show_host = 0;
+    zorp->output.is_show_open = 1;
+    zorp->output.is_show_closed = 0;
+    zorp->output.is_show_host = 0;
     return CONF_OK;
 }
 
@@ -1811,16 +1811,16 @@ static int SET_output_show_open(struct Masscan *masscan, const char *name, const
  * program. Instead of relying upon this program's determination of what
  * ports are open or closed, you can instead simply parse this capture
  * file yourself and make your own determination */
-static int SET_pcap_filename(struct Masscan *masscan, const char *name, const char *value)
+static int SET_pcap_filename(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->pcap_filename[0])
-            fprintf(masscan->echo, "pcap-filename = %s\n", masscan->pcap_filename);
+    if (zorp->echo) {
+        if (zorp->pcap_filename[0])
+            fprintf(zorp->echo, "pcap-filename = %s\n", zorp->pcap_filename);
         return 0;
     }
     if (value)
-        safe_strcpy(masscan->pcap_filename, sizeof(masscan->pcap_filename), value);
+        safe_strcpy(zorp->pcap_filename, sizeof(zorp->pcap_filename), value);
     return CONF_OK;
 }
 
@@ -1829,51 +1829,51 @@ static int SET_pcap_filename(struct Masscan *masscan, const char *name, const ch
  * other options that can set payloads as well, like "--nmap-payloads" for reading
  * their custom payload file, as well as the various "hello" options for specifying
  * the string sent to the server once a TCP connection has been established. */
-static int SET_pcap_payloads(struct Masscan *masscan, const char *name, const char *value)
+static int SET_pcap_payloads(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if ((masscan->payloads.pcap_payloads_filename && masscan->payloads.pcap_payloads_filename[0]) || masscan->echo_all)
-            fprintf(masscan->echo, "pcap-payloads = %s\n", masscan->payloads.pcap_payloads_filename);
+    if (zorp->echo) {
+        if ((zorp->payloads.pcap_payloads_filename && zorp->payloads.pcap_payloads_filename[0]) || zorp->echo_all)
+            fprintf(zorp->echo, "pcap-payloads = %s\n", zorp->payloads.pcap_payloads_filename);
         return 0;
     }
     
-    if (masscan->payloads.pcap_payloads_filename)
-        free(masscan->payloads.pcap_payloads_filename);
-    masscan->payloads.pcap_payloads_filename = strdup(value);
+    if (zorp->payloads.pcap_payloads_filename)
+        free(zorp->payloads.pcap_payloads_filename);
+    zorp->payloads.pcap_payloads_filename = strdup(value);
     
-    /* file will be loaded in "masscan_load_database_files()" */
+    /* file will be loaded in "zorp_load_database_files()" */
     
     return CONF_OK;
 }
 
 
-static int SET_randomize_hosts(struct Masscan *masscan, const char *name, const char *value)
+static int SET_randomize_hosts(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
     UNUSEDPARM(value);
-    if (masscan->echo) {
-        //fprintf(masscan->echo, "randomize-hosts = true\n");
+    if (zorp->echo) {
+        //fprintf(zorp->echo, "randomize-hosts = true\n");
         return 0;
     }
     return CONF_OK;
 }
 
 
-static int SET_rate(struct Masscan *masscan, const char *name, const char *value)
+static int SET_rate(struct Zorp *zorp, const char *name, const char *value)
 {
     double rate = 0.0;
     double point = 10.0;
     unsigned i;
     
-    if (masscan->echo) {
-        if ((unsigned)(masscan->max_rate * 100000) % 100000) {
+    if (zorp->echo) {
+        if ((unsigned)(zorp->max_rate * 100000) % 100000) {
             /* print as floating point number, which is rare */
-            fprintf(masscan->echo, "rate = %f\n", masscan->max_rate);
+            fprintf(zorp->echo, "rate = %f\n", zorp->max_rate);
         } else {
             /* pretty print as just an integer, which is what most people
              * expect */
-            fprintf(masscan->echo, "rate = %-10.0f\n", masscan->max_rate);
+            fprintf(zorp->echo, "rate = %-10.0f\n", zorp->max_rate);
         }
         return 0;
     }
@@ -1902,45 +1902,45 @@ static int SET_rate(struct Masscan *masscan, const char *name, const char *value
         }
     }
     
-    masscan->max_rate = rate;
+    zorp->max_rate = rate;
     return CONF_OK;
 }
 
-static int SET_resume_count(struct Masscan *masscan, const char *name, const char *value)
+static int SET_resume_count(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->resume.count || masscan->echo_all) {
-            fprintf(masscan->echo, "resume-count = %" PRIu64 "\n", masscan->resume.count);
+    if (zorp->echo) {
+        if (zorp->resume.count || zorp->echo_all) {
+            fprintf(zorp->echo, "resume-count = %" PRIu64 "\n", zorp->resume.count);
         }
         return 0;
     }
-    masscan->resume.count = parseInt(value);
+    zorp->resume.count = parseInt(value);
     return CONF_OK;
 }
 
-static int SET_resume_index(struct Masscan *masscan, const char *name, const char *value)
+static int SET_resume_index(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->resume.index  || masscan->echo_all) {
-            fprintf(masscan->echo, "\n# resume information\n");
-            fprintf(masscan->echo, "resume-index = %" PRIu64 "\n", masscan->resume.index);
+    if (zorp->echo) {
+        if (zorp->resume.index  || zorp->echo_all) {
+            fprintf(zorp->echo, "\n# resume information\n");
+            fprintf(zorp->echo, "resume-index = %" PRIu64 "\n", zorp->resume.index);
         }
         return 0;
     }
-    masscan->resume.index = parseInt(value);
+    zorp->resume.index = parseInt(value);
     return CONF_OK;
 }
 
-static int SET_retries(struct Masscan *masscan, const char *name, const char *value)
+static int SET_retries(struct Zorp *zorp, const char *name, const char *value)
 {
     uint64_t x;
     
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->retries || masscan->echo_all)
-            fprintf(masscan->echo, "retries = %u\n", masscan->retries);
+    if (zorp->echo) {
+        if (zorp->retries || zorp->echo_all)
+            fprintf(zorp->echo, "retries = %u\n", zorp->retries);
         return 0;
     }
     x = strtoul(value, 0, 0);
@@ -1948,123 +1948,123 @@ static int SET_retries(struct Masscan *masscan, const char *name, const char *va
         fprintf(stderr, "FAIL: retries=<n>: expected number less than 1000\n");
         return CONF_ERR;
     }
-    masscan->retries = (unsigned)x;
+    zorp->retries = (unsigned)x;
     return CONF_OK;
     
 }
 
-static int SET_rotate_time(struct Masscan *masscan, const char *name, const char *value)
+static int SET_rotate_time(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->output.rotate.timeout || masscan->echo_all)
-            fprintf(masscan->echo, "rotate = %u\n", masscan->output.rotate.timeout);
+    if (zorp->echo) {
+        if (zorp->output.rotate.timeout || zorp->echo_all)
+            fprintf(zorp->echo, "rotate = %u\n", zorp->output.rotate.timeout);
         return 0;
     }
-    masscan->output.rotate.timeout = (unsigned)parseTime(value);
+    zorp->output.rotate.timeout = (unsigned)parseTime(value);
     return CONF_OK;
 }
-static int SET_rotate_directory(struct Masscan *masscan, const char *name, const char *value)
+static int SET_rotate_directory(struct Zorp *zorp, const char *name, const char *value)
 {
     char *p;
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (memcmp(masscan->output.rotate.directory, ".",2) != 0 || masscan->echo_all) {
-            fprintf(masscan->echo, "rotate-dir = %s\n", masscan->output.rotate.directory);
+    if (zorp->echo) {
+        if (memcmp(zorp->output.rotate.directory, ".",2) != 0 || zorp->echo_all) {
+            fprintf(zorp->echo, "rotate-dir = %s\n", zorp->output.rotate.directory);
         }
         return 0;
     }
-    safe_strcpy(   masscan->output.rotate.directory,
-             sizeof(masscan->output.rotate.directory),
+    safe_strcpy(   zorp->output.rotate.directory,
+             sizeof(zorp->output.rotate.directory),
              value);
     /* strip trailing slashes */
-    p = masscan->output.rotate.directory;
+    p = zorp->output.rotate.directory;
     while (*p && (p[strlen(p)-1] == '/' || p[strlen(p)-1] == '\\')) /* Fix for #561 */
         p[strlen(p)-1] = '\0';
     return CONF_OK;
 }
-static int SET_rotate_offset(struct Masscan *masscan, const char *name, const char *value)
+static int SET_rotate_offset(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
     /* Time offset, otherwise output files are aligned to nearest time
      * interval, e.g. at the start of the hour for "hourly" */
-    if (masscan->echo) {
-        if (masscan->output.rotate.offset || masscan->echo_all)
-            fprintf(masscan->echo, "rotate-offset = %u\n", masscan->output.rotate.offset);
+    if (zorp->echo) {
+        if (zorp->output.rotate.offset || zorp->echo_all)
+            fprintf(zorp->echo, "rotate-offset = %u\n", zorp->output.rotate.offset);
         return 0;
     }
-    masscan->output.rotate.offset = (unsigned)parseTime(value);
+    zorp->output.rotate.offset = (unsigned)parseTime(value);
     return CONF_OK;
 }
-static int SET_rotate_filesize(struct Masscan *masscan, const char *name, const char *value)
+static int SET_rotate_filesize(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->output.rotate.filesize || masscan->echo_all)
-            fprintf(masscan->echo, "rotate-size = %" PRIu64 "\n", masscan->output.rotate.filesize);
+    if (zorp->echo) {
+        if (zorp->output.rotate.filesize || zorp->echo_all)
+            fprintf(zorp->echo, "rotate-size = %" PRIu64 "\n", zorp->output.rotate.filesize);
         return 0;
     }
-    masscan->output.rotate.filesize = parseSize(value);
+    zorp->output.rotate.filesize = parseSize(value);
     return CONF_OK;
     
 }
 
-static int SET_script(struct Masscan *masscan, const char *name, const char *value)
+static int SET_script(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if ((masscan->scripting.name && masscan->scripting.name[0]) || masscan->echo_all)
-            fprintf(masscan->echo, "script = %s\n", masscan->scripting.name);
+    if (zorp->echo) {
+        if ((zorp->scripting.name && zorp->scripting.name[0]) || zorp->echo_all)
+            fprintf(zorp->echo, "script = %s\n", zorp->scripting.name);
         return 0;
     }
     if (value && value[0])
-        masscan->is_scripting = 1;
+        zorp->is_scripting = 1;
     else
-        masscan->is_scripting = 0;
+        zorp->is_scripting = 0;
     
-    if (masscan->scripting.name)
-        free(masscan->scripting.name);
+    if (zorp->scripting.name)
+        free(zorp->scripting.name);
     
-    masscan->scripting.name = strdup(value);
+    zorp->scripting.name = strdup(value);
     
     return CONF_OK;
 }
 
 
-static int SET_seed(struct Masscan *masscan, const char *name, const char *value)
+static int SET_seed(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        fprintf(masscan->echo, "seed = %" PRIu64 "\n", masscan->seed);
+    if (zorp->echo) {
+        fprintf(zorp->echo, "seed = %" PRIu64 "\n", zorp->seed);
         return 0;
     }
     if (EQUALS("time", value))
-        masscan->seed = time(0);
+        zorp->seed = time(0);
     else
-        masscan->seed = parseInt(value);
+        zorp->seed = parseInt(value);
     return CONF_OK;
 }
 
-static int SET_space(struct Masscan *masscan, const char *name, const char *value)
+static int SET_space(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
     UNUSEDPARM(value);
-    if (masscan->echo) {
-        fprintf(masscan->echo, "\n");
+    if (zorp->echo) {
+        fprintf(zorp->echo, "\n");
         return 0;
     }
     return CONF_OK;
 }
 
-static int SET_shard(struct Masscan *masscan, const char *name, const char *value)
+static int SET_shard(struct Zorp *zorp, const char *name, const char *value)
 {
     unsigned one = 0;
     unsigned of = 0;
 
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->shard.of > 0  || masscan->echo_all)
-            fprintf(masscan->echo, "shard = %u/%u\n", masscan->shard.one, masscan->shard.of);
+    if (zorp->echo) {
+        if (zorp->shard.of > 0  || zorp->echo_all)
+            fprintf(zorp->echo, "shard = %u/%u\n", zorp->shard.one, zorp->shard.of);
         return 0;
     }
     while (isdigit(*value))
@@ -2084,32 +2084,32 @@ static int SET_shard(struct Masscan *masscan, const char *name, const char *valu
         LOG(0, "hint   it goes like 1/4 2/4 3/4 4/4\n");
         return CONF_ERR;
     }
-    masscan->shard.one = one;
-    masscan->shard.of = of;
+    zorp->shard.one = one;
+    zorp->shard.of = of;
     return CONF_OK;
 }
 
-static int SET_output_stylesheet(struct Masscan *masscan, const char *name, const char *value)
+static int SET_output_stylesheet(struct Zorp *zorp, const char *name, const char *value)
 {
     UNUSEDPARM(name);
-    if (masscan->echo) {
-        if (masscan->output.stylesheet[0] || masscan->echo_all)
-            fprintf(masscan->echo, "stylesheet = %s\n", masscan->output.stylesheet);
+    if (zorp->echo) {
+        if (zorp->output.stylesheet[0] || zorp->echo_all)
+            fprintf(zorp->echo, "stylesheet = %s\n", zorp->output.stylesheet);
         return 0;
     }
     
-    if (masscan->output.format == 0)
-        masscan->output.format = Output_XML;
+    if (zorp->output.format == 0)
+        zorp->output.format = Output_XML;
     
-    safe_strcpy(masscan->output.stylesheet, sizeof(masscan->output.stylesheet), value);
+    safe_strcpy(zorp->output.stylesheet, sizeof(zorp->output.stylesheet), value);
     return CONF_OK;
 }
 
-static int SET_topports(struct Masscan *masscan, const char *name, const char *value)
+static int SET_topports(struct Zorp *zorp, const char *name, const char *value)
 {
     unsigned default_value = 20;
 
-    if (masscan->echo) {
+    if (zorp->echo) {
         /* don't echo: this instead triggers filling the `--port`
          * list, so the ports themselves will be echoed, not this
          * parameter */
@@ -2120,17 +2120,17 @@ static int SET_topports(struct Masscan *masscan, const char *name, const char *v
         /* can be specified by itself on the command-line, alone
          * without a following parameter */
         /* ex: `--top-ports` */
-        masscan->top_ports = default_value;
+        zorp->top_ports = default_value;
     } else if (isBoolean(value)) {
         /* ex: `--top-ports enable` */
         if (parseBoolean(value))
-            masscan->top_ports = default_value;
+            zorp->top_ports = default_value;
         else
-            masscan->top_ports = 0;
+            zorp->top_ports = 0;
     } else if (isInteger(value)) {
         /* ex: `--top-ports 5` */
         uint64_t num = parseInt(value);
-        masscan->top_ports = (unsigned)num;
+        zorp->top_ports = (unsigned)num;
     } else {
         fprintf(stderr, "[-] %s: bad value: %s\n", name, value);
         return CONF_ERR;
@@ -2138,25 +2138,25 @@ static int SET_topports(struct Masscan *masscan, const char *name, const char *v
     return CONF_OK;
 }
 
-static int SET_tcp_mss(struct Masscan *masscan, const char *name, const char *value)
+static int SET_tcp_mss(struct Zorp *zorp, const char *name, const char *value)
 {
     /* h/t @IvreRocks */
     static const unsigned default_mss = 1460;
 
-    if (masscan->echo) {
-        if (masscan->templ_opts) {
-            switch (masscan->templ_opts->tcp.is_mss) {
+    if (zorp->echo) {
+        if (zorp->templ_opts) {
+            switch (zorp->templ_opts->tcp.is_mss) {
                 case Default:
                     break;
                 case Add:
-                    if (masscan->templ_opts->tcp.mss == default_mss)
-                        fprintf(masscan->echo, "tcp-mss = %s\n", "enable");
+                    if (zorp->templ_opts->tcp.mss == default_mss)
+                        fprintf(zorp->echo, "tcp-mss = %s\n", "enable");
                     else
-                        fprintf(masscan->echo, "tcp-mss = %u\n",
-                                masscan->templ_opts->tcp.mss);
+                        fprintf(zorp->echo, "tcp-mss = %u\n",
+                                zorp->templ_opts->tcp.mss);
                     break;
                 case Remove:
-                    fprintf(masscan->echo, "tcp-mss = %s\n", "disable");
+                    fprintf(zorp->echo, "tcp-mss = %s\n", "disable");
                     break;
                 default:
                     break;
@@ -2165,28 +2165,28 @@ static int SET_tcp_mss(struct Masscan *masscan, const char *name, const char *va
         return 0;
     }
 
-    if (masscan->templ_opts == NULL)
-        masscan->templ_opts = calloc(1, sizeof(*masscan->templ_opts));
+    if (zorp->templ_opts == NULL)
+        zorp->templ_opts = calloc(1, sizeof(*zorp->templ_opts));
 
     if (value == 0 || value[0] == '\0') {
         /* no following parameter, so interpret this to mean "enable" */
-        masscan->templ_opts->tcp.is_mss = Add;
-        masscan->templ_opts->tcp.mss = default_mss; /* 1460 */
+        zorp->templ_opts->tcp.is_mss = Add;
+        zorp->templ_opts->tcp.mss = default_mss; /* 1460 */
     } else if (isBoolean(value)) {
         /* looking for "enable" or "disable", but any boolean works,
          * like "true/false" or "off/on" */
         if (parseBoolean(value)) {
-            masscan->templ_opts->tcp.is_mss = Add;
-            masscan->templ_opts->tcp.mss = default_mss; /* 1460 */
+            zorp->templ_opts->tcp.is_mss = Add;
+            zorp->templ_opts->tcp.mss = default_mss; /* 1460 */
         } else
-            masscan->templ_opts->tcp.is_mss = Remove;
+            zorp->templ_opts->tcp.is_mss = Remove;
     } else if (isInteger(value)) {
         /* A specific number was specified */
         uint64_t num = parseInt(value);
         if (num >= 0x10000)
             goto fail;
-        masscan->templ_opts->tcp.is_mss = Add;
-        masscan->templ_opts->tcp.mss = (unsigned)num;
+        zorp->templ_opts->tcp.is_mss = Add;
+        zorp->templ_opts->tcp.mss = (unsigned)num;
     } else
         goto fail;
 
@@ -2196,24 +2196,24 @@ fail:
     return CONF_ERR;
 }
 
-static int SET_tcp_wscale(struct Masscan *masscan, const char *name, const char *value)
+static int SET_tcp_wscale(struct Zorp *zorp, const char *name, const char *value)
 {
     static const unsigned default_value = 3;
 
-    if (masscan->echo) {
-        if (masscan->templ_opts) {
-            switch (masscan->templ_opts->tcp.is_wscale) {
+    if (zorp->echo) {
+        if (zorp->templ_opts) {
+            switch (zorp->templ_opts->tcp.is_wscale) {
                 case Default:
                     break;
                 case Add:
-                    if (masscan->templ_opts->tcp.wscale == default_value)
-                        fprintf(masscan->echo, "tcp-wscale = %s\n", "enable");
+                    if (zorp->templ_opts->tcp.wscale == default_value)
+                        fprintf(zorp->echo, "tcp-wscale = %s\n", "enable");
                     else
-                        fprintf(masscan->echo, "tcp-wscale = %u\n",
-                                masscan->templ_opts->tcp.wscale);
+                        fprintf(zorp->echo, "tcp-wscale = %u\n",
+                                zorp->templ_opts->tcp.wscale);
                     break;
                 case Remove:
-                    fprintf(masscan->echo, "tcp-wscale = %s\n", "disable");
+                    fprintf(zorp->echo, "tcp-wscale = %s\n", "disable");
                     break;
                 default:
                     break;
@@ -2222,24 +2222,24 @@ static int SET_tcp_wscale(struct Masscan *masscan, const char *name, const char 
         return 0;
     }
 
-    if (masscan->templ_opts == NULL)
-        masscan->templ_opts = calloc(1, sizeof(*masscan->templ_opts));
+    if (zorp->templ_opts == NULL)
+        zorp->templ_opts = calloc(1, sizeof(*zorp->templ_opts));
 
     if (value == 0 || value[0] == '\0') {
-        masscan->templ_opts->tcp.is_wscale = Add;
-        masscan->templ_opts->tcp.wscale = default_value;
+        zorp->templ_opts->tcp.is_wscale = Add;
+        zorp->templ_opts->tcp.wscale = default_value;
     } else if (isBoolean(value)) {
         if (parseBoolean(value)) {
-            masscan->templ_opts->tcp.is_wscale = Add;
-            masscan->templ_opts->tcp.wscale = default_value;
+            zorp->templ_opts->tcp.is_wscale = Add;
+            zorp->templ_opts->tcp.wscale = default_value;
         } else
-            masscan->templ_opts->tcp.is_wscale = Remove;
+            zorp->templ_opts->tcp.is_wscale = Remove;
     } else if (isInteger(value)) {
         uint64_t num = parseInt(value);
         if (num >= 255)
             goto fail;
-        masscan->templ_opts->tcp.is_wscale = Add;
-        masscan->templ_opts->tcp.wscale = (unsigned)num;
+        zorp->templ_opts->tcp.is_wscale = Add;
+        zorp->templ_opts->tcp.wscale = (unsigned)num;
     } else
         goto fail;
 
@@ -2249,24 +2249,24 @@ fail:
     return CONF_ERR;
 }
 
-static int SET_tcp_tsecho(struct Masscan *masscan, const char *name, const char *value)
+static int SET_tcp_tsecho(struct Zorp *zorp, const char *name, const char *value)
 {
     static const unsigned default_value = 0x12345678;
 
-    if (masscan->echo) {
-        if (masscan->templ_opts) {
-            switch (masscan->templ_opts->tcp.is_tsecho) {
+    if (zorp->echo) {
+        if (zorp->templ_opts) {
+            switch (zorp->templ_opts->tcp.is_tsecho) {
                 case Default:
                     break;
                 case Add:
-                    if (masscan->templ_opts->tcp.tsecho == default_value)
-                        fprintf(masscan->echo, "tcp-tsecho = %s\n", "enable");
+                    if (zorp->templ_opts->tcp.tsecho == default_value)
+                        fprintf(zorp->echo, "tcp-tsecho = %s\n", "enable");
                     else
-                        fprintf(masscan->echo, "tcp-tsecho = %u\n",
-                                masscan->templ_opts->tcp.tsecho);
+                        fprintf(zorp->echo, "tcp-tsecho = %u\n",
+                                zorp->templ_opts->tcp.tsecho);
                     break;
                 case Remove:
-                    fprintf(masscan->echo, "tcp-tsecho = %s\n", "disable");
+                    fprintf(zorp->echo, "tcp-tsecho = %s\n", "disable");
                     break;
                 default:
                     break;
@@ -2275,24 +2275,24 @@ static int SET_tcp_tsecho(struct Masscan *masscan, const char *name, const char 
         return 0;
     }
 
-    if (masscan->templ_opts == NULL)
-        masscan->templ_opts = calloc(1, sizeof(*masscan->templ_opts));
+    if (zorp->templ_opts == NULL)
+        zorp->templ_opts = calloc(1, sizeof(*zorp->templ_opts));
 
     if (value == 0 || value[0] == '\0') {
-        masscan->templ_opts->tcp.is_tsecho = Add;
-        masscan->templ_opts->tcp.tsecho = default_value;
+        zorp->templ_opts->tcp.is_tsecho = Add;
+        zorp->templ_opts->tcp.tsecho = default_value;
     } else if (isBoolean(value)) {
         if (parseBoolean(value)) {
-            masscan->templ_opts->tcp.is_tsecho = Add;
-            masscan->templ_opts->tcp.tsecho = default_value;
+            zorp->templ_opts->tcp.is_tsecho = Add;
+            zorp->templ_opts->tcp.tsecho = default_value;
         } else
-            masscan->templ_opts->tcp.is_tsecho = Remove;
+            zorp->templ_opts->tcp.is_tsecho = Remove;
     } else if (isInteger(value)) {
         uint64_t num = parseInt(value);
         if (num >= 255)
             goto fail;
-        masscan->templ_opts->tcp.is_tsecho = Add;
-        masscan->templ_opts->tcp.tsecho = (unsigned)num;
+        zorp->templ_opts->tcp.is_tsecho = Add;
+        zorp->templ_opts->tcp.tsecho = (unsigned)num;
     } else
         goto fail;
 
@@ -2302,18 +2302,18 @@ fail:
     return CONF_ERR;
 }
 
-static int SET_tcp_sackok(struct Masscan *masscan, const char *name, const char *value)
+static int SET_tcp_sackok(struct Zorp *zorp, const char *name, const char *value)
 {
-    if (masscan->echo) {
-        if (masscan->templ_opts) {
-            switch (masscan->templ_opts->tcp.is_sackok) {
+    if (zorp->echo) {
+        if (zorp->templ_opts) {
+            switch (zorp->templ_opts->tcp.is_sackok) {
                 case Default:
                     break;
                 case Add:
-                    fprintf(masscan->echo, "tcp-sackok = %s\n", "enable");
+                    fprintf(zorp->echo, "tcp-sackok = %s\n", "enable");
                     break;
                 case Remove:
-                    fprintf(masscan->echo, "tcp-sackok = %s\n", "disable");
+                    fprintf(zorp->echo, "tcp-sackok = %s\n", "disable");
                     break;
                 default:
                     break;
@@ -2322,19 +2322,19 @@ static int SET_tcp_sackok(struct Masscan *masscan, const char *name, const char 
         return 0;
     }
 
-    if (masscan->templ_opts == NULL)
-        masscan->templ_opts = calloc(1, sizeof(*masscan->templ_opts));
+    if (zorp->templ_opts == NULL)
+        zorp->templ_opts = calloc(1, sizeof(*zorp->templ_opts));
 
     if (value == 0 || value[0] == '\0') {
-        masscan->templ_opts->tcp.is_sackok = Add;
+        zorp->templ_opts->tcp.is_sackok = Add;
     } else if (isBoolean(value)) {
         if (parseBoolean(value)) {
-            masscan->templ_opts->tcp.is_sackok = Add;
+            zorp->templ_opts->tcp.is_sackok = Add;
         } else
-            masscan->templ_opts->tcp.is_sackok = Remove;
+            zorp->templ_opts->tcp.is_sackok = Remove;
     } else if (isInteger(value)) {
         if (parseInt(value) != 0)
-            masscan->templ_opts->tcp.is_sackok = Add;
+            zorp->templ_opts->tcp.is_sackok = Add;
     } else
         goto fail;
 
@@ -2345,10 +2345,10 @@ fail:
 }
 
 
-static int SET_debug_tcp(struct Masscan *masscan, const char *name, const char *value) {
+static int SET_debug_tcp(struct Zorp *zorp, const char *name, const char *value) {
     extern int is_tcp_debug; /* global */
     UNUSEDPARM(name);
-    UNUSEDPARM(masscan);
+    UNUSEDPARM(zorp);
 
     if (value == 0 || value[0] == '\0')
         is_tcp_debug = 1;
@@ -2431,7 +2431,7 @@ struct ConfigParameter config_parameters[] = {
  * or from the "config-file" parser for normal options.
  ***************************************************************************/
 void
-masscan_set_parameter(struct Masscan *masscan,
+zorp_set_parameter(struct Zorp *zorp,
                       const char *name, const char *value)
 {
     unsigned index = ARRAY(name);
@@ -2449,13 +2449,13 @@ masscan_set_parameter(struct Masscan *masscan,
         
         for (i=0; config_parameters[i].name; i++) {
             if (EQUALS(config_parameters[i].name, name)) {
-                config_parameters[i].set(masscan, name, value);
+                config_parameters[i].set(zorp, name, value);
                 return;
             } else {
                 size_t j;
                 for (j=0; config_parameters[i].alts[j]; j++) {
                     if (EQUALS(config_parameters[i].alts[j], name)) {
-                        config_parameters[i].set(masscan, name, value);
+                        config_parameters[i].set(zorp, name, value);
                         return;
                     }
                 }
@@ -2470,15 +2470,15 @@ masscan_set_parameter(struct Masscan *masscan,
      * TODO: transition all these old params to the new system
      */
     if (EQUALS("conf", name) || EQUALS("config", name)) {
-        masscan_read_config_file(masscan, value);
+        zorp_read_config_file(zorp, value);
     } else if (EQUALS("adapter", name) || EQUALS("if", name) || EQUALS("interface", name)) {
-        if (masscan->nic[index].ifname[0]) {
-            fprintf(stderr, "CONF: overwriting \"adapter=%s\"\n", masscan->nic[index].ifname);
+        if (zorp->nic[index].ifname[0]) {
+            fprintf(stderr, "CONF: overwriting \"adapter=%s\"\n", zorp->nic[index].ifname);
         }
-        if (masscan->nic_count < index + 1)
-            masscan->nic_count = index + 1;
-        snprintf(  masscan->nic[index].ifname,
-                    sizeof(masscan->nic[index].ifname),
+        if (zorp->nic_count < index + 1)
+            zorp->nic_count = index + 1;
+        snprintf(  zorp->nic[index].ifname,
+                    sizeof(zorp->nic[index].ifname),
                     "%s",
                     value);
 
@@ -2502,14 +2502,14 @@ masscan_set_parameter(struct Masscan *masscan,
                         name, value);
                 exit(1);
             }
-            masscan->nic[index].src.ipv4.first = range.begin;
-            masscan->nic[index].src.ipv4.last = range.end;
-            masscan->nic[index].src.ipv4.range = range.end - range.begin + 1;
+            zorp->nic[index].src.ipv4.first = range.begin;
+            zorp->nic[index].src.ipv4.last = range.end;
+            zorp->nic[index].src.ipv4.range = range.end - range.begin + 1;
             break;
         case Ipv6_Address:
-            masscan->nic[index].src.ipv6.first = range6.begin;
-            masscan->nic[index].src.ipv6.last = range6.end;
-            masscan->nic[index].src.ipv6.range = 1; /* TODO: add support for more than one source */
+            zorp->nic[index].src.ipv6.first = range6.begin;
+            zorp->nic[index].src.ipv6.last = range6.end;
+            zorp->nic[index].src.ipv6.range = 1; /* TODO: add support for more than one source */
             break;
         default:
             LOG(0, "FAIL: bad source IP address: %s=%s\n",
@@ -2550,9 +2550,9 @@ masscan_set_parameter(struct Masscan *masscan,
             exit(1);
         }
 
-        masscan->nic[index].src.port.first = ports.list[0].begin;
-        masscan->nic[index].src.port.last = ports.list[0].end;
-        masscan->nic[index].src.port.range = ports.list[0].end - ports.list[0].begin + 1;
+        zorp->nic[index].src.port.first = ports.list[0].begin;
+        zorp->nic[index].src.port.last = ports.list[0].end;
+        zorp->nic[index].src.port.range = ports.list[0].end - ports.list[0].begin + 1;
     } else if (EQUALS("adapter-mac", name) || EQUALS("spoof-mac", name)
                || EQUALS("source-mac", name) || EQUALS("src-mac", name)) {
         /* Send packets FROM this MAC address */
@@ -2566,23 +2566,23 @@ masscan_set_parameter(struct Masscan *masscan,
         }
 
         /* Check for duplicates */
-        if (macaddress_is_equal(masscan->nic[index].source_mac, source_mac)) {
+        if (macaddress_is_equal(zorp->nic[index].source_mac, source_mac)) {
             /* suppresses warning message about duplicate MAC addresses if
              * they are in fact the same */
             return;
         }
 
         /* Warn if we are overwriting a Mac address */
-        if (masscan->nic[index].my_mac_count != 0) {
-            ipaddress_formatted_t fmt1 = macaddress_fmt(masscan->nic[index].source_mac);
+        if (zorp->nic[index].my_mac_count != 0) {
+            ipaddress_formatted_t fmt1 = macaddress_fmt(zorp->nic[index].source_mac);
             ipaddress_formatted_t fmt2 = macaddress_fmt(source_mac);
             LOG(0, "[-] WARNING: overwriting MAC address, was %s, now %s\n",
                 fmt1.string,
                 fmt2.string);
         }
 
-        masscan->nic[index].source_mac = source_mac;
-        masscan->nic[index].my_mac_count = 1;
+        zorp->nic[index].source_mac = source_mac;
+        zorp->nic[index].my_mac_count = 1;
     }
     else if (EQUALS("router-mac", name) || EQUALS("router", name)
              || EQUALS("dest-mac", name) || EQUALS("destination-mac", name)
@@ -2596,8 +2596,8 @@ masscan_set_parameter(struct Masscan *masscan,
             return;
         }
 
-        masscan->nic[index].router_mac_ipv4 = router_mac;
-        masscan->nic[index].router_mac_ipv6 = router_mac;
+        zorp->nic[index].router_mac_ipv4 = router_mac;
+        zorp->nic[index].router_mac_ipv6 = router_mac;
     }
     else if (EQUALS("router-mac-ipv4", name) || EQUALS("router-ipv4", name)) {
         macaddress_t router_mac;
@@ -2609,7 +2609,7 @@ masscan_set_parameter(struct Masscan *masscan,
             return;
         }
 
-        masscan->nic[index].router_mac_ipv4 = router_mac;
+        zorp->nic[index].router_mac_ipv4 = router_mac;
     }
     else if (EQUALS("router-mac-ipv6", name) || EQUALS("router-ipv6", name)) {
         macaddress_t router_mac;
@@ -2621,7 +2621,7 @@ masscan_set_parameter(struct Masscan *masscan,
             return;
         }
 
-        masscan->nic[index].router_mac_ipv6 = router_mac;
+        zorp->nic[index].router_mac_ipv6 = router_mac;
     }
     else if (EQUALS("router-ip", name)) {
         /* Send packets FROM this IP address */
@@ -2637,28 +2637,28 @@ masscan_set_parameter(struct Masscan *masscan,
             exit(1);
         }
 
-        masscan->nic[index].router_ip = range.begin;
+        zorp->nic[index].router_ip = range.begin;
     }
     else if (EQUALS("udp-ports", name) || EQUALS("udp-port", name)) {
         unsigned is_error = 0;
-        masscan->scan_type.udp = 1;
-        rangelist_parse_ports(&masscan->targets.ports, value, &is_error, Templ_UDP);
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        zorp->scan_type.udp = 1;
+        rangelist_parse_ports(&zorp->targets.ports, value, &is_error, Templ_UDP);
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     }
     else if (EQUALS("oprotos", name) || EQUALS("oproto", name)) {
         unsigned is_error = 0;
-        masscan->scan_type.oproto = 1;
-        rangelist_parse_ports(&masscan->targets.ports, value, &is_error, Templ_Oproto_first);
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        zorp->scan_type.oproto = 1;
+        rangelist_parse_ports(&zorp->targets.ports, value, &is_error, Templ_Oproto_first);
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     }
     else if (EQUALS("tcp-ports", name) || EQUALS("tcp-port", name)) {
         unsigned is_error = 0;
-        masscan->scan_type.tcp = 1;
-        rangelist_parse_ports(&masscan->targets.ports, value, &is_error, Templ_TCP);
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        zorp->scan_type.tcp = 1;
+        rangelist_parse_ports(&zorp->targets.ports, value, &is_error, Templ_TCP);
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     }
     else if (EQUALS("ports", name) || EQUALS("port", name)
              || EQUALS("dst-port", name) || EQUALS("dest-port", name)
@@ -2667,29 +2667,29 @@ masscan_set_parameter(struct Masscan *masscan,
         unsigned defaultrange = 0;
         int err;
 
-        if (masscan->scan_type.udp)
+        if (zorp->scan_type.udp)
             defaultrange = Templ_UDP;
-        else if (masscan->scan_type.sctp)
+        else if (zorp->scan_type.sctp)
             defaultrange = Templ_SCTP;
         
-        err = massip_add_port_string(&masscan->targets, value, defaultrange);
+        err = massip_add_port_string(&zorp->targets, value, defaultrange);
         if (err) {
             fprintf(stderr, "[-] FAIL: bad target port: %s\n", value);
             fprintf(stderr, "    Hint: a port is a number [0..65535]\n");
             exit(1);
         }
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;    }
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;    }
     else if (EQUALS("banner-types", name) || EQUALS("banner-type", name)
              || EQUALS("banner-apps", name) || EQUALS("banner-app", name)
            ) {
         enum ApplicationProtocol app;
         
-        app = masscan_string_to_app(value);
+        app = zorp_string_to_app(value);
         
         if (app) {
-            rangelist_add_range(&masscan->banner_types, app, app);
-            rangelist_sort(&masscan->banner_types);
+            rangelist_add_range(&zorp->banner_types, app, app);
+            rangelist_sort(&zorp->banner_types);
         } else {
             LOG(0, "FAIL: bad banner app: %s\n", value);
             fprintf(stderr, "err\n");
@@ -2699,33 +2699,33 @@ masscan_set_parameter(struct Masscan *masscan,
         unsigned defaultrange = 0;
         int err;
 
-        if (masscan->scan_type.udp)
+        if (zorp->scan_type.udp)
             defaultrange = Templ_UDP;
-        else if (masscan->scan_type.sctp)
+        else if (zorp->scan_type.sctp)
             defaultrange = Templ_SCTP;
         
-        err = massip_add_port_string(&masscan->exclude, value, defaultrange);
+        err = massip_add_port_string(&zorp->exclude, value, defaultrange);
         if (err) {
             fprintf(stderr, "[-] FAIL: bad exclude port: %s\n", value);
             fprintf(stderr, "    Hint: a port is a number [0..65535]\n");
             exit(1);
         }
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     } else if (EQUALS("bpf", name)) {
         size_t len = strlen(value) + 1;
-        if (masscan->bpf_filter)
-            free(masscan->bpf_filter);
-        masscan->bpf_filter = MALLOC(len);
-        memcpy(masscan->bpf_filter, value, len);
+        if (zorp->bpf_filter)
+            free(zorp->bpf_filter);
+        zorp->bpf_filter = MALLOC(len);
+        memcpy(zorp->bpf_filter, value, len);
     } else if (EQUALS("ping", name) || EQUALS("ping-sweep", name)) {
         /* Add ICMP ping request */
         struct Range range;
         range.begin = Templ_ICMP_echo;
         range.end = Templ_ICMP_echo;
-        rangelist_add_range(&masscan->targets.ports, range.begin, range.end);
-        rangelist_sort(&masscan->targets.ports);
-        masscan->scan_type.ping = 1;
+        rangelist_add_range(&zorp->targets.ports, range.begin, range.end);
+        rangelist_sort(&zorp->targets.ports);
+        zorp->scan_type.ping = 1;
         LOG(5, "--ping\n");
     } else if (EQUALS("range", name) || EQUALS("ranges", name)
                || EQUALS("ip", name) || EQUALS("ipv4", name)
@@ -2733,13 +2733,13 @@ masscan_set_parameter(struct Masscan *masscan,
                || EQUALS("destination-ip", name)
                || EQUALS("target-ip", name)) {
         int err;
-        err = massip_add_target_string(&masscan->targets, value);
+        err = massip_add_target_string(&zorp->targets, value);
         if (err) {
             fprintf(stderr, "ERROR: bad IP address/range: %s\n", value);
         }
 
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     }
     else if (
                 EQUALS("exclude", name) ||
@@ -2749,53 +2749,53 @@ masscan_set_parameter(struct Masscan *masscan,
                 EQUALS("exclude-ipv4", name)
                 ) {
         int err;
-        err = massip_add_target_string(&masscan->exclude, value);
+        err = massip_add_target_string(&zorp->exclude, value);
         if (err) {
             fprintf(stderr, "ERROR: bad exclude address/range: %s\n", value);
         }
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     } else if (EQUALS("badsum", name)) {
-        masscan->nmap.badsum = 1;
+        zorp->nmap.badsum = 1;
     } else if (EQUALS("banner1", name)) {
         banner1_test(value);
         exit(1);
     } else if (EQUALS("blackrock-rounds", name)) {
-        masscan->blackrock_rounds = (unsigned)parseInt(value);
+        zorp->blackrock_rounds = (unsigned)parseInt(value);
     } else if (EQUALS("connection-timeout", name) || EQUALS("tcp-timeout", name)) {
         /* The timeout for banners TCP connections */
-        masscan->tcp_connection_timeout = (unsigned)parseInt(value);
+        zorp->tcp_connection_timeout = (unsigned)parseInt(value);
     } else if (EQUALS("datadir", name)) {
-        safe_strcpy(masscan->nmap.datadir, sizeof(masscan->nmap.datadir), value);
+        safe_strcpy(zorp->nmap.datadir, sizeof(zorp->nmap.datadir), value);
     } else if (EQUALS("data-length", name)) {
         unsigned x = (unsigned)strtoul(value, 0, 0);
         if (x >= 1514 - 14 - 40) {
             fprintf(stderr, "error: %s=<n>: expected number less than 1500\n", name);
         } else {
-            masscan->nmap.data_length = x;
+            zorp->nmap.data_length = x;
         }
     } else if (EQUALS("debug", name)) {
         if (EQUALS("if", value)) {
-            masscan->op = Operation_DebugIF;
+            zorp->op = Operation_DebugIF;
         }
     } else if (EQUALS("dns-servers", name)) {
         fprintf(stderr, "nmap(%s): unsupported: DNS lookups too synchronous\n",
                 name);
         exit(1);
     } else if (EQUALS("echo", name)) {
-        masscan->op = Operation_Echo;
+        zorp->op = Operation_Echo;
     } else if (EQUALS("echo-all", name)) {
-        masscan->op = Operation_EchoAll;
+        zorp->op = Operation_EchoAll;
     } else if (EQUALS("echo-cidr", name)) {
-        masscan->op = Operation_EchoCidr;
+        zorp->op = Operation_EchoCidr;
     } else if (EQUALS("excludefile", name)) {
-        unsigned count1 = masscan->exclude.ipv4.count;
+        unsigned count1 = zorp->exclude.ipv4.count;
         unsigned count2;
         int err;
         const char *filename = value;
 
         LOG(1, "EXCLUDING: %s\n", value);
-        err = massip_parse_file(&masscan->exclude, filename);
+        err = massip_parse_file(&zorp->exclude, filename);
         if (err) {
             LOG(0, "[-] FAIL: error reading from exclude file\n");
             exit(1);
@@ -2803,46 +2803,46 @@ masscan_set_parameter(struct Masscan *masscan,
 
         /* Detect if this file has made any change, otherwise don't print
          * a message */
-        count2 = masscan->exclude.ipv4.count;
+        count2 = zorp->exclude.ipv4.count;
         if (count2 - count1)
             fprintf(stderr, "%s: excluding %u ranges from file\n",
                 value, count2 - count1);
     } else if (EQUALS("heartbleed", name)) {
-        masscan->is_heartbleed = 1;
-        masscan_set_parameter(masscan, "no-capture", "cert");
-        masscan_set_parameter(masscan, "no-capture", "heartbleed");
-        masscan_set_parameter(masscan, "banners", "true");
+        zorp->is_heartbleed = 1;
+        zorp_set_parameter(zorp, "no-capture", "cert");
+        zorp_set_parameter(zorp, "no-capture", "heartbleed");
+        zorp_set_parameter(zorp, "banners", "true");
     } else if (EQUALS("ticketbleed", name)) {
-        masscan->is_ticketbleed = 1;
-        masscan_set_parameter(masscan, "no-capture", "cert");
-        masscan_set_parameter(masscan, "no-capture", "ticketbleed");
-        masscan_set_parameter(masscan, "banners", "true");
+        zorp->is_ticketbleed = 1;
+        zorp_set_parameter(zorp, "no-capture", "cert");
+        zorp_set_parameter(zorp, "no-capture", "ticketbleed");
+        zorp_set_parameter(zorp, "banners", "true");
     } else if (EQUALS("host-timeout", name)) {
         fprintf(stderr, "nmap(%s): unsupported: this is an asynchronous tool, so no timeouts\n", name);
         exit(1);
     } else if (EQUALS("iflist", name)) {
-        masscan->op = Operation_List_Adapters;
+        zorp->op = Operation_List_Adapters;
     } else if (EQUALS("includefile", name)) {
         int err;
         const char *filename = value;
 
-        err = massip_parse_file(&masscan->targets, filename);
+        err = massip_parse_file(&zorp->targets, filename);
         if (err) {
             LOG(0, "[-] FAIL: error reading from include file\n");
             exit(1);
         }
-        if (masscan->op == 0)
-            masscan->op = Operation_Scan;
+        if (zorp->op == 0)
+            zorp->op = Operation_Scan;
     } else if (EQUALS("infinite", name)) {
-        masscan->is_infinite = 1;
+        zorp->is_infinite = 1;
     } else if (EQUALS("interactive", name)) {
-        masscan->output.is_interactive = 1;
+        zorp->output.is_interactive = 1;
     } else if (EQUALS("nointeractive", name)) {
-        masscan->output.is_interactive = 0;
+        zorp->output.is_interactive = 0;
     } else if (EQUALS("status", name)) {
-        masscan->output.is_status_updates = 1;
+        zorp->output.is_status_updates = 1;
     } else if (EQUALS("nostatus", name)) {
-        masscan->output.is_status_updates = 0;
+        zorp->output.is_status_updates = 0;
     } else if (EQUALS("ip-options", name)) {
         fprintf(stderr, "nmap(%s): unsupported: maybe soon\n", name);
         exit(1);
@@ -2874,19 +2874,19 @@ masscan_set_parameter(struct Masscan *masscan,
         fprintf(stderr, "nmap(%s): OS scanning unsupported\n", name);
         exit(1);
     } else if (EQUALS("packet-trace", name) || EQUALS("trace-packet", name)) {
-        masscan->nmap.packet_trace = 1;
+        zorp->nmap.packet_trace = 1;
     } else if (EQUALS("privileged", name) || EQUALS("unprivileged", name)) {
         fprintf(stderr, "nmap(%s): unsupported\n", name);
         exit(1);
     } else if (EQUALS("pfring", name)) {
-        masscan->is_pfring = 1;
+        zorp->is_pfring = 1;
     } else if (EQUALS("port-ratio", name)) {
         fprintf(stderr, "nmap(%s): unsupported\n", name);
         exit(1);
     } else if (EQUALS("readrange", name) || EQUALS("readranges", name)) {
-        masscan->op = Operation_ReadRange;
+        zorp->op = Operation_ReadRange;
     } else if (EQUALS("reason", name)) {
-        masscan->output.is_reason = 1;
+        zorp->output.is_reason = 1;
     } else if (EQUALS("redis", name)) {
         struct Range range;
         unsigned offset = 0;
@@ -2911,32 +2911,32 @@ masscan_set_parameter(struct Masscan *masscan,
         }
 
         /* TODO: add support for connecting to IPv6 addresses here */
-        masscan->redis.ip.ipv4 = range.begin;
-        masscan->redis.ip.version = 4;
+        zorp->redis.ip.ipv4 = range.begin;
+        zorp->redis.ip.version = 4;
 
-        masscan->redis.port = port;
-        masscan->output.format = Output_Redis;
-        safe_strcpy(masscan->output.filename, 
-                 sizeof(masscan->output.filename), 
+        zorp->redis.port = port;
+        zorp->output.format = Output_Redis;
+        safe_strcpy(zorp->output.filename, 
+                 sizeof(zorp->output.filename), 
                  "<redis>");
     } else if(EQUALS("redis-pwd", name)) {
-        masscan->redis.password = strdup(value);
+        zorp->redis.password = strdup(value);
     } else if (EQUALS("release-memory", name)) {
         fprintf(stderr, "nmap(%s): this is our default option\n", name);
     } else if (EQUALS("resume", name)) {
-        masscan_read_config_file(masscan, value);
-        masscan_set_parameter(masscan, "output-append", "true");
+        zorp_read_config_file(zorp, value);
+        zorp_set_parameter(zorp, "output-append", "true");
     } else if (EQUALS("vuln", name)) {
         if (EQUALS("heartbleed", value)) {
-            masscan_set_parameter(masscan, "heartbleed", "true");
+            zorp_set_parameter(zorp, "heartbleed", "true");
             return;
 		} else if (EQUALS("ticketbleed", value)) {
-            masscan_set_parameter(masscan, "ticketbleed", "true");
+            zorp_set_parameter(zorp, "ticketbleed", "true");
             return;
         } else if (EQUALS("poodle", value) || EQUALS("sslv3", value)) {
-            masscan->is_poodle_sslv3 = 1;
-            masscan_set_parameter(masscan, "no-capture", "cert");
-            masscan_set_parameter(masscan, "banners", "true");
+            zorp->is_poodle_sslv3 = 1;
+            zorp_set_parameter(zorp, "no-capture", "cert");
+            zorp_set_parameter(zorp, "banners", "true");
             return;
         }
         
@@ -2945,18 +2945,18 @@ masscan_set_parameter(struct Masscan *masscan,
             fprintf(stderr, "  hint: use '--vuln list' to list available scripts\n");
             exit(1);
         }
-        if (masscan->vuln_name != NULL) {
-            if (strcmp(masscan->vuln_name, value) == 0)
+        if (zorp->vuln_name != NULL) {
+            if (strcmp(zorp->vuln_name, value) == 0)
                 return; /* ok */
             else {
                 fprintf(stderr, "FAIL: only one vuln check supported at a time\n");
                 fprintf(stderr, "  hint: '%s' is existing vuln check, '%s' is new vuln check\n",
-                        masscan->vuln_name, value);
+                        zorp->vuln_name, value);
                 exit(1);
             }
         }
         
-        masscan->vuln_name = vulncheck_lookup(value)->name;
+        zorp->vuln_name = vulncheck_lookup(value)->name;
     } else if (EQUALS("scan-delay", name) || EQUALS("max-scan-delay", name)) {
         fprintf(stderr, "nmap(%s): unsupported: we do timing VASTLY differently!\n", name);
         exit(1);
@@ -2964,24 +2964,24 @@ masscan_set_parameter(struct Masscan *masscan,
         fprintf(stderr, "nmap(%s): TCP scan flags not yet supported\n", name);
         exit(1);
     } else if (EQUALS("sendq", name) || EQUALS("sendqueue", name)) {
-        masscan->is_sendq = 1;
+        zorp->is_sendq = 1;
     } else if (EQUALS("send-eth", name)) {
         fprintf(stderr, "nmap(%s): unnecessary, we always do --send-eth\n", name);
     } else if (EQUALS("send-ip", name)) {
         fprintf(stderr, "nmap(%s): unsupported, we only do --send-eth\n", name);
         exit(1);
     } else if (EQUALS("selftest", name) || EQUALS("self-test", name) || EQUALS("regress", name)) {
-        masscan->op = Operation_Selftest;
+        zorp->op = Operation_Selftest;
         return;
     } else if (EQUALS("benchmark", name)) {
-        masscan->op = Operation_Benchmark;
+        zorp->op = Operation_Benchmark;
         return;
     } else if (EQUALS("source-port", name) || EQUALS("sourceport", name)) {
-        masscan_set_parameter(masscan, "adapter-port", value);
+        zorp_set_parameter(zorp, "adapter-port", value);
     } else if (EQUALS("nobacktrace", name) || EQUALS("backtrace", name)) {
         ;
     } else if (EQUALS("no-stylesheet", name)) {
-        masscan->output.stylesheet[0] = '\0';
+        zorp->output.stylesheet[0] = '\0';
     } else if (EQUALS("system-dns", name)) {
         fprintf(stderr, "nmap(%s): DNS lookups will never be supported by this code\n", name);
         exit(1);
@@ -2990,22 +2990,22 @@ masscan_set_parameter(struct Masscan *masscan,
         if (!isInteger(value))
             n = 100;
         LOG(2, "top-ports = %u\n", n);
-        masscan->top_ports = n;
+        zorp->top_ports = n;
     } else if (EQUALS("traceroute", name)) {
         fprintf(stderr, "nmap(%s): unsupported\n", name);
         exit(1);
     } else if (EQUALS("test", name)) {
         if (EQUALS("csv", value))
-            masscan->is_test_csv = 1;
+            zorp->is_test_csv = 1;
     } else if (EQUALS("notest", name)) {
         if (EQUALS("csv", value))
-            masscan->is_test_csv = 0;
+            zorp->is_test_csv = 0;
     } else if (EQUALS("ttl", name)) {
         unsigned x = (unsigned)strtoul(value, 0, 0);
         if (x >= 256) {
             fprintf(stderr, "error: %s=<n>: expected number less than 256\n", name);
         } else {
-            masscan->nmap.ttl = x;
+            zorp->nmap.ttl = x;
         }
     } else if (EQUALS("version", name)) {
         print_version();
@@ -3023,15 +3023,15 @@ masscan_set_parameter(struct Masscan *masscan,
         fprintf(stderr, "nmap(%s): unsupported\n", name);
         exit(1);
     } else if (EQUALS("vlan", name) || EQUALS("adapter-vlan", name)) {
-        masscan->nic[index].is_vlan = 1;
-        masscan->nic[index].vlan_id = (unsigned)parseInt(value);
+        zorp->nic[index].is_vlan = 1;
+        zorp->nic[index].vlan_id = (unsigned)parseInt(value);
     } else if (EQUALS("wait", name)) {
         if (EQUALS("forever", value))
-            masscan->wait =  INT_MAX;
+            zorp->wait =  INT_MAX;
         else
-            masscan->wait = (unsigned)parseInt(value);
+            zorp->wait = (unsigned)parseInt(value);
     } else if (EQUALS("webxml", name)) {
-        masscan_set_parameter(masscan, "stylesheet", "http://nmap.org/svn/docs/nmap.xsl");
+        zorp_set_parameter(zorp, "stylesheet", "http://nmap.org/svn/docs/nmap.xsl");
     } else {
         fprintf(stderr, "CONF: unknown config option: %s=%s\n", name, value);
         exit(1);
@@ -3107,7 +3107,7 @@ is_singleton(const char *name)
 /*****************************************************************************
  *****************************************************************************/
 static void
-masscan_help()
+zorp_help()
 {
     printf(
 "usage: zorpinvader [options]\n"
@@ -3149,27 +3149,27 @@ masscan_help()
 /***************************************************************************
  ***************************************************************************/
 void
-masscan_load_database_files(struct Masscan *masscan)
+zorp_load_database_files(struct Zorp *zorp)
 {
     const char *filename;
     
     /*
      * "pcap-payloads"
      */
-    filename = masscan->payloads.pcap_payloads_filename;
+    filename = zorp->payloads.pcap_payloads_filename;
     if (filename) {
-        if (masscan->payloads.udp == NULL)
-            masscan->payloads.udp = payloads_udp_create();
-        if (masscan->payloads.oproto == NULL)
-            masscan->payloads.oproto = payloads_udp_create();
+        if (zorp->payloads.udp == NULL)
+            zorp->payloads.udp = payloads_udp_create();
+        if (zorp->payloads.oproto == NULL)
+            zorp->payloads.oproto = payloads_udp_create();
 
-        payloads_read_pcap(filename, masscan->payloads.udp, masscan->payloads.oproto);
+        payloads_read_pcap(filename, zorp->payloads.udp, zorp->payloads.oproto);
     }
 
     /*
      * `--nmap-payloads`
      */
-    filename = masscan->payloads.nmap_payloads_filename;
+    filename = zorp->payloads.nmap_payloads_filename;
     if (filename) {
         FILE *fp;
         
@@ -3178,10 +3178,10 @@ masscan_load_database_files(struct Masscan *masscan)
             fprintf(stderr, "[-] FAIL: --nmap-payloads\n");
             fprintf(stderr, "[-] %s:%s\n", filename, strerror(errno));
         } else {
-            if (masscan->payloads.udp == NULL)
-                masscan->payloads.udp = payloads_udp_create();
+            if (zorp->payloads.udp == NULL)
+                zorp->payloads.udp = payloads_udp_create();
             
-            payloads_udp_readfile(fp, filename, masscan->payloads.udp);
+            payloads_udp_readfile(fp, filename, zorp->payloads.udp);
             
             fclose(fp);
         }
@@ -3190,12 +3190,12 @@ masscan_load_database_files(struct Masscan *masscan)
     /*
      * "nmap-service-probes"
      */
-    filename = masscan->payloads.nmap_service_probes_filename;
+    filename = zorp->payloads.nmap_service_probes_filename;
     if (filename) {
-        if (masscan->payloads.probes)
-            nmapserviceprobes_free(masscan->payloads.probes);
+        if (zorp->payloads.probes)
+            nmapserviceprobes_free(zorp->payloads.probes);
         
-        masscan->payloads.probes = nmapserviceprobes_read_file(filename);
+        zorp->payloads.probes = nmapserviceprobes_read_file(filename);
     }
 }
 
@@ -3204,7 +3204,7 @@ masscan_load_database_files(struct Masscan *masscan)
  * Called by 'main()' when starting up.
  ***************************************************************************/
 void
-masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
+zorp_command_line(struct Zorp *zorp, int argc, char *argv[])
 {
     int i;
 
@@ -3219,7 +3219,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
             const char *argname = argv[i] + 2;
 
             if (EQUALS("help", argname)) {
-                masscan_help();
+                zorp_help();
                 exit(1);
             } else if (is_numable(argname)) {
                 /* May exist by itself like a bool or take an additional
@@ -3258,14 +3258,14 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                 memcpy(name2, name, name_length);
                 name2[name_length] = '\0';
 
-                masscan_set_parameter(masscan, name2, value);
+                zorp_set_parameter(zorp, name2, value);
             } else if (EQUALS("readscan", argv[i]+2)) {
                 /* Read in a binary file instead of scanning the network*/
-                masscan->op = Operation_ReadScan;
+                zorp->op = Operation_ReadScan;
                 
                 /* Default to reading banners */
-                masscan->is_banners = true;
-                masscan->is_banners_rawudp = true;
+                zorp->is_banners = true;
+                zorp->is_banners_rawudp = true;
 
                 /* This option may be followed by many filenames, therefore,
                  * skip forward in the argument list until the next
@@ -3306,7 +3306,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                 memcpy(name2, name, name_length);
                 name2[name_length] = '\0';
 
-                masscan_set_parameter(masscan, name2, value);
+                zorp_set_parameter(zorp, name2, value);
             }
             continue;
         }
@@ -3330,7 +3330,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     arg = argv[i]+2;
                 else
                     arg = argv[++i];
-                masscan_read_config_file(masscan, arg);
+                zorp_read_config_file(zorp, arg);
                 break;
             case 'd': /* just do same as verbosity level */
                 {
@@ -3345,7 +3345,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     arg = argv[i]+2;
                 else
                     arg = argv[++i];
-                masscan_set_parameter(masscan, "adapter", arg);
+                zorp_set_parameter(zorp, "adapter", arg);
                 break;
             case 'f':
                 fprintf(stderr, "nmap(%s): fragmentation not yet supported\n", argv[i]);
@@ -3358,23 +3358,23 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     arg = argv[i]+2;
                 else
                     arg = argv[++i];
-                masscan_set_parameter(masscan, "adapter-port", arg);
+                zorp_set_parameter(zorp, "adapter-port", arg);
                 break;
             case 'h':
             case '?':
-                masscan_usage();
+                zorp_usage();
                 break;
             case 'i':
                 if (argv[i][3] == '\0' && !isdigit(argv[i][2]&0xFF)) {
                     /* This looks like an nmap option*/
                     switch (argv[i][2]) {
                     case 'L':
-                        masscan_set_parameter(masscan, "includefile", argv[++i]);
+                        zorp_set_parameter(zorp, "includefile", argv[++i]);
                         break;
                     case 'R':
                         /* -iR in nmap makes it randomize addresses completely. Thus,
                          * it's nearest equivalent is scanning the entire Internet range */
-                        masscan_set_parameter(masscan, "include", "0.0.0.0/0");
+                        zorp_set_parameter(zorp, "include", "0.0.0.0/0");
                         break;
                     default:
                         fprintf(stderr, "nmap(%s): unsupported option\n", argv[i]);
@@ -3387,7 +3387,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     else
                         arg = argv[++i];
 
-                    masscan_set_parameter(masscan, "adapter", arg);
+                    zorp_set_parameter(zorp, "adapter", arg);
                 }
                 break;
             case 'n':
@@ -3397,48 +3397,48 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
             case 'o': /* nmap output format */
                 switch (argv[i][2]) {
                 case 'A':
-                    masscan->output.format = Output_All;
+                    zorp->output.format = Output_All;
                     fprintf(stderr, "nmap(%s): unsupported output format\n", argv[i]);
                     exit(1);
                     break;
                 case 'B':
-                    masscan->output.format = Output_Binary;
+                    zorp->output.format = Output_Binary;
                     break;
                 case 'D':
-                    masscan->output.format = Output_NDJSON;
+                    zorp->output.format = Output_NDJSON;
                     break;
                 case 'J':
-                    masscan->output.format = Output_JSON;
+                    zorp->output.format = Output_JSON;
                     break;
                 case 'N':
-                    masscan->output.format = Output_Nmap;
+                    zorp->output.format = Output_Nmap;
                     fprintf(stderr, "nmap(%s): unsupported output format\n", argv[i]);
                     exit(1);
                     break;
                 case 'X':
-                    masscan->output.format = Output_XML;
+                    zorp->output.format = Output_XML;
                     break;
                 case 'R':
-                    masscan->output.format = Output_Redis;
+                    zorp->output.format = Output_Redis;
                     if (i+1 < argc && argv[i+1][0] != '-')
-                        masscan_set_parameter(masscan, "redis", argv[i+1]);
+                        zorp_set_parameter(zorp, "redis", argv[i+1]);
                     break;
                 case 'S':
-                    masscan->output.format = Output_ScriptKiddie;
+                    zorp->output.format = Output_ScriptKiddie;
                     fprintf(stderr, "nmap(%s): unsupported output format\n", argv[i]);
                     exit(1);
                     break;
                 case 'G':
-                    masscan->output.format = Output_Grepable;
+                    zorp->output.format = Output_Grepable;
                     break;
                 case 'L':
-                    masscan_set_parameter(masscan, "output-format", "list");
+                    zorp_set_parameter(zorp, "output-format", "list");
                     break;
                 case 'U':
-                    masscan_set_parameter(masscan, "output-format", "unicornscan");
+                    zorp_set_parameter(zorp, "output-format", "unicornscan");
                     break;
                 case 'H':
-                    masscan_set_parameter(masscan, "output-format", "hostonly");
+                    zorp_set_parameter(zorp, "output-format", "hostonly");
                     break;
                 default:
                     fprintf(stderr, "nmap(%s): unknown output format\n", argv[i]);
@@ -3451,7 +3451,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     exit(1);
                 }
 
-                masscan_set_parameter(masscan, "output-filename", argv[i]);
+                zorp_set_parameter(zorp, "output-filename", argv[i]);
                 break;
             case 'O':
                 fprintf(stderr, "nmap(%s): unsupported, OS detection is too complex\n", argv[i]);
@@ -3465,7 +3465,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                 if (i >= argc || arg[0] == 0) { // if string is empty
                     fprintf(stderr, "%s: empty parameter\n", argv[i]);
                 } else
-                    masscan_set_parameter(masscan, "ports", arg);
+                    zorp_set_parameter(zorp, "ports", arg);
                 break;
             case 'P':
                 switch (argv[i][2]) {
@@ -3506,7 +3506,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                         fprintf(stderr, "nmap(%s): Zombie scans will never be supported\n", argv[i]);
                         exit(1);
                     case 'L': /* List Scan - simply list targets to scan */
-                        masscan->op = Operation_ListScan;
+                        zorp->op = Operation_ListScan;
                         break;
                     case 'M':
                         fprintf(stderr, "nmap(%s): Maimon scan not yet supported\n", argv[i]);
@@ -3518,17 +3518,17 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                         fprintf(stderr, "nmap(%s): NULL scan not yet supported\n", argv[i]);
                         exit(1);
                     case 'O': /* Other IP protocols (not ICMP, UDP, TCP, or SCTP) */
-                        masscan->scan_type.oproto = 1;
+                        zorp->scan_type.oproto = 1;
                         break;
                     case 'S': /* TCP SYN scan - THIS IS WHAT WE DO! */
-                        masscan->scan_type.tcp = 1;
+                        zorp->scan_type.tcp = 1;
                         break;
                     case 'T': /* TCP connect scan */
                         fprintf(stderr, "nmap(%s): connect() is too synchronous for cool kids\n", argv[i]);
                         fprintf(stderr, "WARNING: doing SYN scan (-sS) anyway, ignoring (-sT)\n");
                         break;
                     case 'U': /* UDP scan */
-                        masscan->scan_type.udp = 1;
+                        zorp->scan_type.udp = 1;
                         break;
                     case 'V':
                         fprintf(stderr, "nmap(%s): unlikely this will be supported\n", argv[i]);
@@ -3542,7 +3542,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     case 'Y':
                         break;
                     case 'Z':
-                        masscan->scan_type.sctp = 1;
+                        zorp->scan_type.sctp = 1;
                         break;
                     default:
                         fprintf(stderr, "nmap(%s): unsupported option\n", argv[i]);
@@ -3559,7 +3559,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                     arg = argv[i]+2;
                 else
                     arg = argv[++i];
-                masscan_set_parameter(masscan, "adapter-ip", arg);
+                zorp_set_parameter(zorp, "adapter-ip", arg);
                 break;
             case 'v':
                 {
@@ -3569,10 +3569,10 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
                 }
                 break;
             case 'V': /* print version and exit */
-                masscan_set_parameter(masscan, "version", "");
+                zorp_set_parameter(zorp, "version", "");
                 break;
             case 'W':
-                masscan->op = Operation_List_Adapters;
+                zorp->op = Operation_List_Adapters;
                 return;
             case 'T':
                 fprintf(stderr, "nmap(%s): unsupported, we do timing WAY different than nmap\n", argv[i]);
@@ -3596,29 +3596,29 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
         /* If parameter doesn't start with '-', assume it's an
          * IPv4 range
          */
-        masscan_set_parameter(masscan, "range", argv[i]);
+        zorp_set_parameter(zorp, "range", argv[i]);
     }
 
     /*
      * If no other "scan type" found, then default to TCP
      */
-    if (masscan->scan_type.udp == 0 && masscan->scan_type.sctp == 0
-        && masscan->scan_type.ping == 0 && masscan->scan_type.arp == 0
-        && masscan->scan_type.oproto == 0)
-        masscan->scan_type.tcp = 1;
+    if (zorp->scan_type.udp == 0 && zorp->scan_type.sctp == 0
+        && zorp->scan_type.ping == 0 && zorp->scan_type.arp == 0
+        && zorp->scan_type.oproto == 0)
+        zorp->scan_type.tcp = 1;
     
     /*
      * If "top-ports" specified, then add all those ports. This may be in
      * addition to any other ports
      */
-    if (masscan->top_ports) {
-        config_top_ports(masscan, masscan->top_ports);
+    if (zorp->top_ports) {
+        config_top_ports(zorp, zorp->top_ports);
     }
-    if (masscan->shard.of < masscan->shard.one) {
+    if (zorp->shard.of < zorp->shard.one) {
         fprintf(stderr, "[-] WARNING: the shard number must be less than the total shard count: %u/%u\n",
-            masscan->shard.one, masscan->shard.of);
+            zorp->shard.one, zorp->shard.of);
     }
-    if (masscan->shard.of > 1 && masscan->seed == 0) {
+    if (zorp->shard.of > 1 && zorp->seed == 0) {
         fprintf(stderr, "[-] WARNING: --seed <num> is not specified\n    HINT: all shards must share the same seed\n");
     }
 }
@@ -3629,7 +3629,7 @@ masscan_command_line(struct Masscan *masscan, int argc, char *argv[])
  * Use#2: make sure your configuration was interpreted correctly.
  ***************************************************************************/
 void
-masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
+zorp_echo(struct Zorp *zorp, FILE *fp, unsigned is_echo_all)
 {
     unsigned i;
     unsigned l = 0;
@@ -3638,34 +3638,34 @@ masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
      * NEW:
      * Print all configuration parameters
      */
-    masscan->echo = fp;
-    masscan->echo_all = is_echo_all;
+    zorp->echo = fp;
+    zorp->echo_all = is_echo_all;
     for (i=0; config_parameters[i].name; i++) {
-        config_parameters[i].set(masscan, 0, 0);
+        config_parameters[i].set(zorp, 0, 0);
     }
-    masscan->echo = 0;
-    masscan->echo_all = 0;
+    zorp->echo = 0;
+    zorp->echo_all = 0;
     
     /*
      * OLD:
      * Things here below are the old way of echoing parameters.
      * TODO: cleanup this code, replacing with the new way.
      */
-    if (masscan->nic_count == 0)
-        masscan_echo_nic(masscan, fp, 0);
+    if (zorp->nic_count == 0)
+        zorp_echo_nic(zorp, fp, 0);
     else {
-        for (i=0; i<masscan->nic_count; i++)
-            masscan_echo_nic(masscan, fp, i);
+        for (i=0; i<zorp->nic_count; i++)
+            zorp_echo_nic(zorp, fp, i);
     }
 
     /**
      * Fix for #737, save adapter-port/source-port value or range
      */
-    if (masscan->nic[0].src.port.first != 0) {
-        fprintf(fp, "adapter-port = %d", masscan->nic[0].src.port.first);
-        if (masscan->nic[0].src.port.first != masscan->nic[0].src.port.last) {
+    if (zorp->nic[0].src.port.first != 0) {
+        fprintf(fp, "adapter-port = %d", zorp->nic[0].src.port.first);
+        if (zorp->nic[0].src.port.first != zorp->nic[0].src.port.last) {
             /* --adapter-port <first>-<last> */
-            fprintf(fp, "-%d", masscan->nic[0].src.port.last);
+            fprintf(fp, "-%d", zorp->nic[0].src.port.last);
         }
         fprintf(fp, "\n");
     }
@@ -3677,8 +3677,8 @@ masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
     fprintf(fp, "ports = ");
     /* Disable comma generation for the first element */
     l = 0;
-    for (i=0; i<masscan->targets.ports.count; i++) {
-        struct Range range = masscan->targets.ports.list[i];
+    for (i=0; i<zorp->targets.ports.count; i++) {
+        struct Range range = zorp->targets.ports.list[i];
         do {
             struct Range rrange = range;
             unsigned done = 0;
@@ -3721,9 +3721,9 @@ masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
     /*
      * IPv4 address targets
      */
-    for (i=0; i<masscan->targets.ipv4.count; i++) {
+    for (i=0; i<zorp->targets.ipv4.count; i++) {
         unsigned prefix_bits;
-        struct Range range = masscan->targets.ipv4.list[i];
+        struct Range range = zorp->targets.ipv4.list[i];
 
         if (range.begin == range.end) {
             fprintf(fp, "range = %u.%u.%u.%u",
@@ -3755,9 +3755,9 @@ masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
         }
         fprintf(fp, "\n");
     }
-    for (i=0; i<masscan->targets.ipv6.count; i++) {
+    for (i=0; i<zorp->targets.ipv6.count; i++) {
         bool exact = false;
-        struct Range6 range = masscan->targets.ipv6.list[i];
+        struct Range6 range = zorp->targets.ipv6.list[i];
         ipaddress_formatted_t fmt = ipv6address_fmt(range.begin);
         
         fprintf(fp, "range = %s", fmt.string);
@@ -3778,7 +3778,7 @@ masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
 
 /***************************************************************************
  * Prints the list of CIDR to scan to the command-line then exits.
- * Use: provide this list to other tools. Unlike masscan -sL, it keeps
+ * Use: provide this list to other tools. Unlike zorp -sL, it keeps
  * the CIDR aggretated format, and does not randomize the order of output.
  * For example, given the starting range of [10.0.0.1-10.0.0.255], this will
  * print all the CIDR ranges that make this up:
@@ -3792,20 +3792,20 @@ masscan_echo(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
  *  10.0.0.128/25
  ***************************************************************************/
 void
-masscan_echo_cidr(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
+zorp_echo_cidr(struct Zorp *zorp, FILE *fp, unsigned is_echo_all)
 {
     unsigned i;
     UNUSEDPARM(is_echo_all);
 
-    masscan->echo = fp;
+    zorp->echo = fp;
 
     /*
      * For all IPv4 ranges ...
      */
-    for (i=0; i<masscan->targets.ipv4.count; i++) {
+    for (i=0; i<zorp->targets.ipv4.count; i++) {
 
         /* Get the next range in the list */
-        struct Range range = masscan->targets.ipv4.list[i];
+        struct Range range = zorp->targets.ipv4.list[i];
 
         /* If not a single CIDR range, print all the CIDR ranges
          * needed to completely represent this addres */
@@ -3840,8 +3840,8 @@ masscan_echo_cidr(struct Masscan *masscan, FILE *fp, unsigned is_echo_all)
     /*
      * For all IPv6 ranges...
      */
-    for (i=0; i<masscan->targets.ipv6.count; i++) {
-        struct Range6 range = masscan->targets.ipv6.list[i];
+    for (i=0; i<zorp->targets.ipv6.count; i++) {
+        struct Range6 range = zorp->targets.ipv6.list[i];
         bool exact = false;
         while (!exact) {
             ipaddress_formatted_t fmt = ipv6address_fmt(range.begin);
@@ -3876,7 +3876,7 @@ trim(char *line, size_t sizeof_line)
 /***************************************************************************
  ***************************************************************************/
 void
-masscan_read_config_file(struct Masscan *masscan, const char *filename)
+zorp_read_config_file(struct Zorp *zorp, const char *filename)
 {
     FILE *fp;
     char line[65536];
@@ -3913,7 +3913,7 @@ masscan_read_config_file(struct Masscan *masscan, const char *filename)
         trim(name, sizeof(line));
         trim(value, sizeof(line));
 
-        masscan_set_parameter(masscan, name, value);
+        zorp_set_parameter(zorp, name, value);
     }
 
     fclose(fp);
@@ -3923,7 +3923,7 @@ masscan_read_config_file(struct Masscan *masscan, const char *filename)
 
 /***************************************************************************
  ***************************************************************************/
-int masscan_conf_contains(const char *x, int argc, char **argv)
+int zorp_conf_contains(const char *x, int argc, char **argv)
 {
     int i;
 
@@ -3954,10 +3954,10 @@ mainconf_selftest()
         int argc = 6;
         char *argv[] = { "foo", "bar", "-ddd", "--readscan", "xxx", "--something" };
     
-        if (masscan_conf_contains("--nothing", argc, argv))
+        if (zorp_conf_contains("--nothing", argc, argv))
             goto failure;
 
-        if (!masscan_conf_contains("--readscan", argc, argv))
+        if (!zorp_conf_contains("--readscan", argc, argv))
             goto failure;
     }
 

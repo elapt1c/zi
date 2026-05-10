@@ -13,7 +13,7 @@ static void
 unicornscan_out_open(struct Output *out, FILE *fp)
 {
     UNUSEDPARM(out);
-    fprintf(fp, "#masscan\n");
+    fprintf(fp, "#zorp\n");
 }
 
 
