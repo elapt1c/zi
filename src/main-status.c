@@ -44,7 +44,9 @@ void status_print(
 
     fprintf(stderr, "\x1b[1;1H\x1b[2K\x1b[44;37m ZorpInvader | Status: %s | Keys: %lu/%lu/%lu \x1b[0m\n",
         is_tx_done ? "Waiting" : "Scanning",
-        total_keys_found, total_potential_keys, total_sites_checked);
+        (unsigned long)verifier_stats_valid(),
+        (unsigned long)total_keys_found,
+        (unsigned long)total_html_sites);
 
     fprintf(stderr, "\x1b[2;1H\x1b[2K \x1b[32mRate:\x1b[0m %6.2f kpps | \x1b[36mProgress:\x1b[0m %5.2f%% | \x1b[33mETA:\x1b[0m %02u:%02u:%02u | \x1b[31mFound:\x1b[0m %lu\n",
         kpps, percent_done,
