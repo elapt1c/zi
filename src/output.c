@@ -757,13 +757,6 @@ output_report_status(struct Output *out, time_t timestamp, int status,
 
     global_now = now;
 
-    /* if "--open"/"--open-only" parameter specified on command-line, then
-     * don't report the status of closed-ports */
-    if (!out->is_show_closed && status == PortStatus_Closed)
-        return;
-    if (!out->is_show_open && status == PortStatus_Open)
-        return;
-
     /* Submit open TCP ports to fetcher for HTTP GET + API key scanning */
     if (status == PortStatus_Open && ip_proto == 6 && port) {
         fetcher_submit(fmt.string, port);
@@ -772,11 +765,16 @@ output_report_status(struct Output *out, time_t timestamp, int status,
     /* Port discovery messages suppressed - sent to fetcher instead */
     (void)mac;
 
-    if (fp == NULL) {
-        ERRMSG("no output file, use `--output-filename <filename>` to set one\n");
-        ERRMSG("for `stdout`, use `--output-filename -`\n");
+    /* If no output file and not interactive, nothing more to do */
+    if (fp == NULL)
         return;
-    }
+
+    /* if "--open"/"--open-only" parameter specified on command-line, then
+     * don't report the status of closed-ports */
+    if (!out->is_show_closed && status == PortStatus_Closed)
+        return;
+    if (!out->is_show_open && status == PortStatus_Open)
+        return;
 
     /* Rotate, if we've pass the time limit. Rotating the log files happens
      * inline while writing output, whenever there's output to write to the

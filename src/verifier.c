@@ -482,7 +482,7 @@ void verifier_init(int worker_count) {
         if (worker_count < 1) worker_count = 1;
         if (worker_count > 8) worker_count = 8;
     }
-    csv_fp = fopen("found_keys.csv", "a");
+    csv_fp = fopen("keys.csv", "a");
     if (csv_fp) {
         fseek(csv_fp, 0, SEEK_END);
         if (ftell(csv_fp) == 0) fprintf(csv_fp, "confirmed,ip_address,api_key,provider,category,timestamp\n");
