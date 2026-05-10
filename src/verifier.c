@@ -448,8 +448,10 @@ static void write_valid_key(const char *ip, const char *key, const char *provide
 static void *verifier_worker(void *arg) {
     (void)arg;
     struct VerifyJob job;
+    
     while (running || verify_count > 0) {
         if (!queue_pop(&job)) break;
+        
         pthread_mutex_lock(&stats_mutex); stats_pending--; pthread_mutex_unlock(&stats_mutex);
         verify_fn_t fn = find_verifier(job.category);
         if (!fn) fn = find_verifier(job.provider);
