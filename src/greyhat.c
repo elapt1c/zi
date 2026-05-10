@@ -242,7 +242,6 @@ void greyhat_scan(ipaddress ip, const unsigned char *px, unsigned length) {
 
 void greyhat_init(void) {
     memset(seen_cache, 0, sizeof(seen_cache));
-    memset(discovery_log, 0, sizeof(discovery_log));
     greyhat_smack = smack_create("greyhat", 0);
     for (int i = 0; key_patterns[i].prefix != NULL; i++)
         smack_add_pattern(greyhat_smack, key_patterns[i].prefix, strlen(key_patterns[i].prefix), ID_KEY, 0);
