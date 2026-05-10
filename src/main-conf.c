@@ -67,19 +67,19 @@ static struct Range top_ports_sctp[] = {
 void
 masscan_usage(void)
 {
-    printf("usage: masscan [options] [<IP|RANGE>... -pPORT[,PORT...]]\n");
+    printf("usage: zorpinvader [options]\n");
     printf("\n");
     printf("examples:\n");
-    printf("    masscan -p80,8000-8100 10.0.0.0/8 --rate=10000\n");
-    printf("        scan some web ports on 10.x.x.x at 10kpps\n");
+    printf("    zorpinvader --rate 5000 --banners\n");
+    printf("        scan the Internet for API keys at 5k packets/sec\n");
     printf("\n");
-    printf("    masscan --nmap\n");
-    printf("        list those options that are compatible with nmap\n");
+    printf("    zorpinvader --echo\n");
+    printf("        print current configuration to stdout\n");
     printf("\n");
-    printf("    masscan -p80 10.0.0.0/8 --banners -oB <filename>\n");
-    printf("        save results of scan in binary format to <filename>\n");
+    printf("    zorpinvader --rate 10000 --banners --banners.html\n");
+    printf("        capture HTML bodies for deeper API key inspection\n");
     printf("\n");
-    printf("    masscan --open --banners --readscan <filename> -oX <savefile>\n");
+    printf("    zorpinvader --open --banners --readscan <filename> -oX <savefile>\n");
     printf("        read binary scan results in <filename> and save them as xml in <savefile>\n");
     exit(1);
 }
@@ -94,7 +94,7 @@ print_version()
     const char *compiler_version = "unknown";
     const char *os = "unknown";
     printf("\n");
-    printf("Masscan version %s ( %s )\n", 
+    printf("ZorpInvader version %s ( %s )\n",
         MASSCAN_VERSION,
         "https://github.com/robertdavidgraham/masscan"
         );
@@ -181,8 +181,8 @@ print_version()
 static void
 print_nmap_help(void)
 {
-    printf("Masscan (https://github.com/robertdavidgraham/masscan)\n"
-"Usage: masscan [Options] -p{Target-Ports} {Target-IP-Ranges}\n"
+    printf("ZorpInvader (https://github.com/robertdavidgraham/masscan)\n"
+"Usage: zorpinvader [Options]\n"
 "TARGET SPECIFICATION:\n"
 "  Can pass only IPv4/IPv6 address, CIDR networks, or ranges (non-nmap style)\n"
 "  Ex: 10.0.0.0/8, 192.168.0.1, 10.0.0.1-10.0.0.254\n"
@@ -3110,42 +3110,38 @@ static void
 masscan_help()
 {
     printf(
-"usage: masscan [options] [<IP|RANGE>... -pPORT[,PORT...]]\n"
-"MASSCAN is a fast port scanner. The primary input parameters are the\n"
-"IP addresses/ranges you want to scan, and the port numbers. An example\n"
-"is the following, which scans the 10.x.x.x network for web servers:\n"
+"usage: zorpinvader [options]\n"
+"ZorpInvader is an API key scanner. It scans the Internet for exposed\n"
+"services and inspects banners/HTTP responses for leaked API keys,\n"
+"then verifies them against live endpoints.\n"
 "\n"
-"    masscan 10.0.0.0/8 -p80\n"
+"Quick start:\n"
+"    zorpinvader --rate 5000 --banners\n"
 "\n"
-"The program auto-detects network interface/adapter settings. If this\n"
-"fails, you'll have to set these manually. The following is an\n"
-"example of all the parameters that are needed:\n"
+"This auto-detects your network interface and begins scanning with\n"
+"hardcoded default targets. The --banners flag is required — it enables\n"
+"banner capture (and auto-enables HTML body capture, since keys often\n"
+"live in <script> tags).\n"
 "\n"
-"    --adapter-ip 192.168.10.123\n"
-"    --adapter-mac 00-11-22-33-44-55\n"
-"    --router-mac 66-55-44-33-22-11\n"
+"By default, ZorpInvader scans 0.0.0.0/0 but excludes RFC1918, CGNAT,\n"
+"link-local, and loopback ranges. Default ports: 80, 8080, 8443, 8000,\n"
+"3000, 5000, 8888.\n"
 "\n"
-"Parameters can be set either via the command-line or config-file. The\n"
-"names are the same for both. Thus, the above adapter settings would\n"
-"appear as follows in a configuration file:\n"
+"Found keys are written to found_keys.csv with real-time TUI feedback.\n"
 "\n"
-"    adapter-ip = 192.168.10.123\n"
-"    adapter-mac = 00-11-22-33-44-55\n"
-"    router-mac = 66-55-44-33-22-11\n"
+"Common options:\n"
+"    --rate <packets/s>   Scan speed (default: 100)\n"
+"    --banners            Enable banner/API key scanning (required)\n"
+"    --adapter-ip <ip>    Set source IP manually\n"
+"    --adapter-mac <mac>  Set source MAC manually\n"
+"    --router-mac <mac>   Set gateway MAC manually\n"
+"    -c <filename>        Use a config file\n"
+"    --echo               Print current config and exit\n"
 "\n"
-"All single-dash parameters have a spelled out double-dash equivalent,\n"
-"so '-p80' is the same as '--ports 80' (or 'ports = 80' in config file).\n"
-"To use the config file, type:\n"
+"Parameters can be set via command-line or config file. To generate a\n"
+"config file from current settings:\n"
 "\n"
-"    masscan -c <filename>\n"
-"\n"
-"To generate a config-file from the current settings, use the --echo\n"
-"option. This stops the program from actually running, and just echoes\n"
-"the current configuration instead. This is a useful way to generate\n"
-"your first config file, or see a list of parameters you didn't know\n"
-"about. I suggest you try it now:\n"
-"\n"
-"    masscan -p1234 --echo\n"
+"    zorpinvader --echo > myscan.conf\n"
 "\n");
     exit(1);
 }

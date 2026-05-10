@@ -101,7 +101,7 @@ DEFINES =
 CFLAGS = -g -ggdb $(FLAGS2) $(INCLUDES) $(DEFINES) -Wall -O2
 .SUFFIXES: .c .cpp
 
-all: bin/masscan 
+all: bin/zorpinvader 
 
 
 tmp/main-conf.o: src/main-conf.c src/*.h
@@ -120,19 +120,19 @@ SRC = $(sort $(wildcard src/*.c))
 OBJ = $(addprefix tmp/, $(notdir $(addsuffix .o, $(basename $(SRC))))) 
 
 
-bin/masscan: $(OBJ)
+bin/zorpinvader: $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $(OBJ) $(LDFLAGS) $(LIBS)
 
 clean:
 	rm -f tmp/*.o
-	rm -f bin/masscan
+	rm -f bin/zorpinvader
 
-regress: bin/masscan
-	bin/masscan --selftest
+regress: bin/zorpinvader
+	bin/zorpinvader --selftest
 
 test: regress
 
-install: bin/masscan
-	install $(INSTALL_DATA) bin/masscan $(DESTDIR)$(BINDIR)/masscan
+install: bin/zorpinvader
+	install $(INSTALL_DATA) bin/zorpinvader $(DESTDIR)$(BINDIR)/zorpinvader
 	
-default: bin/masscan
+default: bin/zorpinvader
