@@ -3131,6 +3131,7 @@ zorp_help()
 "\n"
 "Common options:\n"
 "    --rate <packets/s>   Scan speed (default: 100)\n"
+"    --tpc <n>            Fetcher threads per core (default: 16, max: 32)\n"
 "    --banners            Enable banner/API key scanning (required)\n"
 "    --adapter-ip <ip>    Set source IP manually\n"
 "    --adapter-mac <mac>  Set source MAC manually\n"

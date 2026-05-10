@@ -32,6 +32,7 @@ extern uint64_t last_html_time;
 
 /* API */
 void fetcher_init(void);
+void fetcher_set_tpc(int tpc);
 void fetcher_shutdown(void);
 void fetcher_submit(const char *ip, unsigned port);
 

@@ -69,9 +69,9 @@ void status_print(
     }
 
     fprintf(stderr, "\x1b[15;1H\x1b[2K\x1b[37m--------------------------------------------------------------------------------\x1b[0m\n");
-    fprintf(stderr, "\x1b[16;1H\x1b[2K\x1b[36mFetcher:\x1b[0m pages=%lu scripts=%lu | \x1b[35mgzip=%lu html=%lu <script>=%lu\n",
+    fprintf(stderr, "\x1b[16;1H\x1b[2K\x1b[36mFetcher:\x1b[0m pages=%lu scripts=%lu | \x1b[35mgzip=%lu html=%lu <script>=%lu | \x1b[33mqueue=%lu\n",
         fetcher_pages_fetched(), fetcher_scripts_fetched(),
-        fetcher_gzip_bodies(), fetcher_html_bodies(), fetcher_script_tags_found());
+        fetcher_gzip_bodies(), fetcher_html_bodies(), fetcher_script_tags_found(), fetcher_queue_depth());
     fprintf(stderr, "\x1b[17;1H\x1b[2K\x1b[37mValid: %d | Invalid: %d | Pending: %d\n",
         verifier_stats_valid(), verifier_stats_invalid(), verifier_stats_pending());
 

@@ -51,6 +51,7 @@ static const char *safe_casestrn(const unsigned char *haystack, size_t hlen, con
 }
 
 #define QSIZE 32768
+#define FETCHER_THROTTLE_THRESHOLD 10000 /* slow SYN scan if fetcher queue exceeds this */
 struct Job { char ip[64]; unsigned port; };
 static struct Job q[QSIZE];
 static int qh=0, qt=0, qc=0, running=0;
@@ -58,6 +59,7 @@ static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cnd = PTHREAD_COND_INITIALIZER;
 static pthread_t *thr = NULL;
 static int nthreads = 0;
+static int configured_tpc = 0; /* 0 = auto (16) */
 
 static unsigned char *grab(const char *u, size_t *len) {
     char c[2048];
@@ -204,10 +206,13 @@ void fetcher_submit(const char *ip, unsigned port) {
     pthread_mutex_unlock(&mtx);
 }
 
+void fetcher_set_tpc(int tpc) { configured_tpc = tpc; }
+
 void fetcher_init(void) {
     int nc=sysconf(_SC_NPROCESSORS_ONLN);
     if (nc<1) nc=4;
-    nthreads=nc*16; if (nthreads>128) nthreads=128;
+    int tpc = configured_tpc ? configured_tpc : 16;
+    nthreads=nc*tpc; if (nthreads>256) nthreads=256;
     thr=malloc(sizeof(pthread_t)*nthreads);
     running=1;
     for (int i=0;i<nthreads;i++) pthread_create(&thr[i],NULL,worker,NULL);
