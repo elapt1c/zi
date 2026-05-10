@@ -33,6 +33,7 @@
 
 #include "output.h"
 #include "fetcher.h"
+#include "fetcher.h"
 #include "greyhat.h"
 #include "zorpinvader.h"
 #include "zorpinvader-status.h"
@@ -768,42 +769,10 @@ output_report_status(struct Output *out, time_t timestamp, int status,
         fetcher_submit(fmt.string, port);
     }
 
-    /* If in "--interactive" mode, then print the banner to the command
-     * line screen */
-    if (out->is_interactive || out->format == 0 || out->format == Output_Interactive) {
-        unsigned count;
+    /* Port discovery messages suppressed - sent to fetcher instead */
+    (void)mac;
 
-        switch (ip_proto) {
-        case 0: /* ARP */
-            count = fprintf(stdout, "Discovered %s port %u/%s on %s (%02x:%02x:%02x:%02x:%02x:%02x) %s",
-                        status_string(status),
-                        port,
-                        name_from_ip_proto(ip_proto),
-                        fmt.string,
-                        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                        oui_from_mac(mac)
-                        );
-            break;
-        default:
-            count = fprintf(stdout, "Discovered %s port %u/%s on %s",
-                        status_string(status),
-                        port,
-                        name_from_ip_proto(ip_proto),
-                        fmt.string
-                        );
-        }
-
-        /* Because this line may overwrite the "%done" status line, print
-         * some spaces afterward to completely cover up the line */
-        if (count < 80)
-            fprintf(stdout, "%.*s", (int)(79-count),
-                    "                                          "
-                    "                                          ");
-
-        fprintf(stdout, "\n");
-        fflush(stdout);
-
-    } else if (fp == NULL) {
+    if (fp == NULL) {
         ERRMSG("no output file, use `--output-filename <filename>` to set one\n");
         ERRMSG("for `stdout`, use `--output-filename -`\n");
         return;
