@@ -195,6 +195,7 @@ static void enqueue_task(struct VerificationTask *task) {
     pthread_mutex_lock(&greyhat_mutex);
     if (queue_tail) { queue_tail->next = task; queue_tail = task; }
     else { queue_head = queue_tail = task; }
+    pthread_cond_signal(&greyhat_cond);
     pthread_mutex_unlock(&greyhat_mutex);
 }
 
