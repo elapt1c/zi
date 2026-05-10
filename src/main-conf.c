@@ -1860,6 +1860,14 @@ static int SET_randomize_hosts(struct Zorp *zorp, const char *name, const char *
 }
 
 
+static int SET_tpc(struct Zorp *zorp, const char *name, const char *value)
+{
+    UNUSEDPARM(name);
+    extern void fetcher_set_tpc(int);
+    fetcher_set_tpc(atoi(value));
+    return CONF_OK;
+}
+
 static int SET_rate(struct Zorp *zorp, const char *name, const char *value)
 {
     double rate = 0.0;
@@ -2373,6 +2381,7 @@ struct ConfigParameter config_parameters[] = {
     {"seed",            SET_seed,               0,      {0}},
     {"arpscan",         SET_arpscan,            F_BOOL, {"arp",0}},
     {"randomize-hosts", SET_randomize_hosts,    F_BOOL, {0}},
+    {"tpc",             SET_tpc,                0,      {"threads-per-core",0}},
     {"rate",            SET_rate,               0,      {"max-rate",0}},
     {"shard",           SET_shard,              0,      {"shards",0}},
     {"banners",         SET_banners,            F_BOOL, {"banner",0}}, /* --banners */
