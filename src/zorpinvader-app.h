@@ -49,12 +49,12 @@ enum ApplicationProtocol {
 };
 
 const char *
-masscan_app_to_string(enum ApplicationProtocol proto);
+zorpinvader_app_to_string(enum ApplicationProtocol proto);
 
 enum ApplicationProtocol
 masscan_string_to_app(const char *str);
 
 int
-masscan_app_selftest(void);
+zorpinvader_app_selftest(void);
 
 #endif

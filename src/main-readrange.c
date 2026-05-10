@@ -1,5 +1,5 @@
 #include "main-readrange.h"
-#include "masscan.h"
+#include "zorpinvader.h"
 #include <assert.h>
 
 /***************************************************************************

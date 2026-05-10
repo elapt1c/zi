@@ -5,10 +5,10 @@
 #include "syn-cookie.h"
 #include "util-logger.h"
 #include "output.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "proto-banner1.h"
 #include "massip-port.h"
-#include "masscan.h"
+#include "zorpinvader.h"
 #include "unusedparm.h"
 
 #include <ctype.h>

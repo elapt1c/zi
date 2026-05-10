@@ -2,7 +2,7 @@
 #include "proto-preprocess.h"
 #include "util-logger.h"
 #include "output.h"
-#include "masscan-status.h"
+#include "zorpinvader-status.h"
 #include "unusedparm.h"
 
 

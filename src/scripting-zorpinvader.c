@@ -1,4 +1,4 @@
-#include "masscan.h"
+#include "zorpinvader.h"
 #include "scripting.h"
 #include "stub-lua.h"
 #include "unusedparm.h"

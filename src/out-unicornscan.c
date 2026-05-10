@@ -1,7 +1,7 @@
 #include "output.h"
-#include "masscan.h"
-#include "masscan-app.h"
-#include "masscan-status.h"
+#include "zorpinvader.h"
+#include "zorpinvader-app.h"
+#include "zorpinvader-status.h"
 #include "unusedparm.h"
 #include "out-tcp-services.h"
 

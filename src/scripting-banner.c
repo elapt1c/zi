@@ -7,7 +7,7 @@
 #include "smack.h"
 #include "unusedparm.h"
 #include "util-logger.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "output.h"
 #include "stack-tcp-api.h"
 #include "proto-preprocess.h"

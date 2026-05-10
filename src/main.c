@@ -15,9 +15,11 @@
     of headers, and the functions have a lot of local variables. I'm trying
     to make this file relative "flat" this way so that everything is visible.
 */
-#include "masscan.h"
-#include "masscan-version.h"
-#include "masscan-status.h"     /* open or closed */
+#include "zorpinvader.h"
+#include "zorpinvader-version.h"
+#include "zorpinvader-status.h"     /* open or closed */
+#include "fetcher.h"
+#include "verifier.h"
 #include "massip-parse.h"
 #include "massip-port.h"
 #include "main-status.h"        /* printf() regular status updates */
@@ -71,6 +73,7 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdint.h>
@@ -92,8 +95,12 @@
 unsigned volatile is_tx_done = 0;
 unsigned volatile is_rx_done = 0;
 time_t global_now;
-
 uint64_t usec_start;
+uint64_t total_keys_found = 0;
+uint64_t total_potential_keys = 0;
+uint64_t total_sites_checked = 0;
+uint64_t total_html_sites = 0;
+uint64_t last_html_time = 0;
 
 
 /***************************************************************************
@@ -1349,7 +1356,7 @@ main_scan(struct Masscan *masscan)
         now = time(0);
         safe_gmtime(&x, &now);
         strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S GMT", &x);
-        LOG(0, "Starting masscan " MASSCAN_VERSION " (http://bit.ly/14GZzcT) at %s\n",
+        LOG(0, "Starting ZorpInvader " ZORPINVADER_VERSION " (https://github.com/elapt1c/ZorpInvader) at %s\n",
             buffer);
 
         if (count_ports == 1 && \
@@ -1561,6 +1568,14 @@ main_scan(struct Masscan *masscan)
 
 /***************************************************************************
  ***************************************************************************/
+/* Forward declarations for greyhat/verifier */
+void *greyhat_thread(void *arg);
+void greyhat_init(void);
+void verifier_init(int worker_count);
+void verifier_init_key_log(void);
+void verifier_shutdown(void);
+void fetcher_init(void);
+pthread_cond_t greyhat_cond;
 int main(int argc, char *argv[])
 {
     struct Masscan masscan[1];
@@ -1717,6 +1732,40 @@ int main(int argc, char *argv[])
         /*
          * THIS IS THE NORMAL THING
          */
+        /* Initialize greyhat API key scanner */
+        greyhat_init();
+        verifier_init_key_log();
+        verifier_init(0); /* auto-scale workers */
+        atexit(verifier_shutdown);
+        fetcher_init();
+        {
+            pthread_t gh_thread;
+            pthread_create(&gh_thread, NULL, greyhat_thread, NULL);
+        }
+        /* Hardcoded Internet scan targets for API key scanner */
+        if (rangelist_count(&masscan->targets.ipv4) == 0 && massint128_is_zero(range6list_count(&masscan->targets.ipv6))) {
+            /* Default: scan entire IPv4 space */
+            rangelist_remove_all(&masscan->targets.ipv4);
+            rangelist_add_range(&masscan->targets.ipv4, 0x00000000, 0xFFFFFFFF);
+            /* Exclude private, CGNAT, link-local, loopback */
+            rangelist_add_range(&masscan->exclude.ipv4, 0x0A000000, 0x0AFFFFFF);
+            rangelist_add_range(&masscan->exclude.ipv4, 0xAC100000, 0xAC1FFFFF);
+            rangelist_add_range(&masscan->exclude.ipv4, 0xC0A80000, 0xC0A8FFFF);
+            rangelist_add_range(&masscan->exclude.ipv4, 0x64400000, 0x647FFFFF);
+            rangelist_add_range(&masscan->exclude.ipv4, 0xA9FE0000, 0xA9FEFFFF);
+            rangelist_add_range(&masscan->exclude.ipv4, 0x7F000000, 0x7FFFFFFF);
+            rangelist_exclude(&masscan->targets.ipv4, &masscan->exclude.ipv4);
+            /* Set HTTP ports if none specified */
+            if (rangelist_count(&masscan->targets.ports) == 0) {
+                rangelist_add_range(&masscan->targets.ports, 80, 80);
+                rangelist_add_range(&masscan->targets.ports, 8080, 8080);
+                rangelist_add_range(&masscan->targets.ports, 8443, 8443);
+                rangelist_add_range(&masscan->targets.ports, 8000, 8000);
+                rangelist_add_range(&masscan->targets.ports, 3000, 3000);
+                rangelist_add_range(&masscan->targets.ports, 5000, 5000);
+                rangelist_add_range(&masscan->targets.ports, 8888, 8888);
+            }
+        }
         if (rangelist_count(&masscan->targets.ipv4) == 0 && massint128_is_zero(range6list_count(&masscan->targets.ipv6))) {
             /* We check for an empty target list here first, before the excludes,
              * so that we can differentiate error messages after excludes, in case
@@ -1847,7 +1896,7 @@ int main(int argc, char *argv[])
             x += zeroaccess_selftest();
             x += nmapserviceprobes_selftest();
             x += rstfilter_selftest();
-            x += masscan_app_selftest();
+            x += zorpinvader_app_selftest();
             x += icmp_selftest();
 
 

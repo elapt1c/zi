@@ -1,6 +1,6 @@
 #include "output.h"
-#include "masscan-app.h"
-#include "masscan-status.h"
+#include "zorpinvader-app.h"
+#include "zorpinvader-status.h"
 #include "out-record.h"
 #include "util-safefunc.h"
 #include <assert.h>

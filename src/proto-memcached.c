@@ -6,7 +6,7 @@
 #include "proto-banner1.h"
 #include "smack.h"
 #include "unusedparm.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "output.h"
 #include "stack-tcp-api.h"
 #include "proto-preprocess.h"

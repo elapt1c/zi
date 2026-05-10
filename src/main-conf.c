@@ -11,16 +11,16 @@
     as reminding people that this is an asynchronous scanner.
 
 */
-#include "masscan.h"
+#include "zorpinvader.h"
 #include "massip-addr.h"
-#include "masscan-version.h"
+#include "zorpinvader-version.h"
 #include "util-safefunc.h"
 #include "util-logger.h"
 #include "proto-banner1.h"
 #include "templ-payloads.h"
 #include "crypto-base64.h"
 #include "vulncheck.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "unusedparm.h"
 #include "read-service-probes.h"
 #include "util-malloc.h"
@@ -95,7 +95,7 @@ print_version()
     const char *os = "unknown";
     printf("\n");
     printf("ZorpInvader version %s ( %s )\n",
-        MASSCAN_VERSION,
+        ZORPINVADER_VERSION,
         "https://github.com/robertdavidgraham/masscan"
         );
     printf("Compiled on: %s %s\n", __DATE__, __TIME__);

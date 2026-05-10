@@ -88,7 +88,7 @@ TBSCertificate  ::=  SEQUENCE  {
 #include "proto-x509.h"
 #include "proto-spnego.h"
 #include "proto-banout.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "smack.h"
 #include "util-logger.h"
 #include <assert.h>

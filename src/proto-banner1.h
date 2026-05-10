@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include <stdio.h>
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "proto-banout.h"
 #include "proto-x509.h"
 #include "proto-spnego.h"

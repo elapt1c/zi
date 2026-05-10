@@ -3,7 +3,7 @@
 #include "proto-banner1.h"
 #include "stack-tcp-api.h"
 #include "unusedparm.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "util-malloc.h"
 #include "assert.h"
 #include <ctype.h>

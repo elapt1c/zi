@@ -1,5 +1,5 @@
 #include "output.h"
-#include "masscan.h"
+#include "zorpinvader.h"
 
 
 /****************************************************************************

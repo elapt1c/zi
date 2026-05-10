@@ -7,7 +7,7 @@
 #include "massip-addr.h"
 #include "stack-src.h"
 #include "unusedparm.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 
 #define MAX_BANNER_LENGTH 8192
 

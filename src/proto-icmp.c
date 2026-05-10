@@ -3,7 +3,7 @@
 #include "syn-cookie.h"
 #include "util-logger.h"
 #include "output.h"
-#include "masscan-status.h"
+#include "zorpinvader-status.h"
 #include "massip-port.h"
 #include "main-dedup.h"
 

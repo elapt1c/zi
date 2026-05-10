@@ -5,7 +5,7 @@
 #include "proto-smb.h"
 #include "stack-tcp-api.h"
 #include "unusedparm.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "crypto-siphash24.h"
 #include "util-safefunc.h"
 #include "unusedparm.h"

@@ -4,7 +4,7 @@
 #include "smack.h"
 #include "unusedparm.h"
 #include "util-safefunc.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "util-malloc.h"
 #include "util-bool.h"
 #include "stack-tcp-core.h"

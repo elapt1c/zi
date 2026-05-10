@@ -4,9 +4,9 @@
 */
 #include "massip-addr.h"
 #include "in-binary.h"
-#include "masscan.h"
-#include "masscan-app.h"
-#include "masscan-status.h"
+#include "zorpinvader.h"
+#include "zorpinvader-app.h"
+#include "zorpinvader-status.h"
 #include "main-globals.h"
 #include "output.h"
 #include "util-safefunc.h"

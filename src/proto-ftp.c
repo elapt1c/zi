@@ -1,7 +1,7 @@
 #include "proto-ftp.h"
 #include "proto-banner1.h"
 #include "unusedparm.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "stack-tcp-api.h"
 #include "proto-ssl.h"
 #include <ctype.h>

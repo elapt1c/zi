@@ -1,6 +1,6 @@
 #include "proto-sctp.h"
 #include "proto-preprocess.h"
-#include "masscan-status.h"
+#include "zorpinvader-status.h"
 #include "output.h"
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,5 +1,5 @@
 #include "proto-ntlmssp.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "proto-banout.h"
 #include "util-safefunc.h"
 #include "util-malloc.h"

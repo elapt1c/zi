@@ -1,6 +1,6 @@
 #include "output.h"
-#include "masscan-app.h"
-#include "masscan-status.h"
+#include "zorpinvader-app.h"
+#include "zorpinvader-status.h"
 #include "util-safefunc.h"
 
 
@@ -126,7 +126,7 @@ xml_out_banner(struct Output *out, FILE *fp, time_t timestamp,
         name_from_ip_proto(ip_proto),
         port,
         reason, ttl,
-        masscan_app_to_string(proto),
+        zorpinvader_app_to_string(proto),
         normalize_string(px, length, banner_buffer, sizeof(banner_buffer))
         );
 }

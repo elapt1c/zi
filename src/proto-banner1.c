@@ -20,7 +20,7 @@
 #include "proto-memcached.h"
 #include "proto-mc.h"
 #include "proto-versioning.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "scripting.h"
 #include "util-malloc.h"
 #include "util-logger.h"

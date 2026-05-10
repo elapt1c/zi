@@ -1,5 +1,5 @@
 #include "in-report.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "crypto-base64.h"
 #include "proto-x509.h"
 #include "proto-banout.h"

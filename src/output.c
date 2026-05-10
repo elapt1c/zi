@@ -32,10 +32,10 @@
 #define _FILE_OFFSET_BITS 64
 
 #include "output.h"
-#include "masscan.h"
-#include "masscan-status.h"
+#include "zorpinvader.h"
+#include "zorpinvader-status.h"
 #include "proto-banner1.h"
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "main-globals.h"
 #include "pixie-file.h"
 #include "pixie-sockets.h"
@@ -908,7 +908,7 @@ output_report_banner(struct Output *out, time_t now,
             port,
             name_from_ip_proto(ip_proto),
             fmt.string,
-            masscan_app_to_string(proto),
+            zorpinvader_app_to_string(proto),
             normalize_string(px, length, banner_buffer, sizeof(banner_buffer))
             );
 

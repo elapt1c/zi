@@ -1,7 +1,7 @@
 #include "output.h"
-#include "masscan.h"
-#include "masscan-version.h"
-#include "masscan-status.h"
+#include "zorpinvader.h"
+#include "zorpinvader-version.h"
+#include "zorpinvader-status.h"
 #include "out-tcp-services.h"
 #include "massip-port.h"
 #include "util-safefunc.h"
@@ -81,7 +81,7 @@ grepable_out_open(struct Output *out, FILE *fp)
     //%a %b %d %H:%M:%S %Y
     strftime(timestamp, sizeof(timestamp), "%c", &tm);
 
-    fprintf(fp, "# Masscan " MASSCAN_VERSION " scan initiated %s\n", 
+    fprintf(fp, "# Masscan " ZORPINVADER_VERSION " scan initiated %s\n", 
                 timestamp);
 
     count = count_type(&out->masscan->targets.ports, Templ_TCP, Templ_TCP_last);
@@ -193,7 +193,7 @@ grepable_out_banner(struct Output *out, FILE *fp, time_t timestamp,
     fprintf(fp, "Host: %s ()", fmt.string);
     fprintf(fp, "\tPort: %u", port);
 
-    fprintf(fp, "\tService: %s", masscan_app_to_string(proto));
+    fprintf(fp, "\tService: %s", zorpinvader_app_to_string(proto));
 
     normalize_string(px, length, banner_buffer, sizeof(banner_buffer));
 

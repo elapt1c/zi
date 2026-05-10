@@ -1,5 +1,5 @@
 #include "output.h"
-#include "masscan.h"
+#include "zorpinvader.h"
 #include "pixie-sockets.h"
 #include "util-logger.h"
 #include <ctype.h>

@@ -1,4 +1,4 @@
-#include "masscan-app.h"
+#include "zorpinvader-app.h"
 #include "util-safefunc.h"
 
 /******************************************************************************
@@ -6,7 +6,7 @@
  * banner that we've collected
  ******************************************************************************/
 const char *
-masscan_app_to_string(enum ApplicationProtocol proto)
+zorpinvader_app_to_string(enum ApplicationProtocol proto)
 {
     static char tmp[64];
 
@@ -112,7 +112,7 @@ masscan_string_to_app(const char *str)
 }
 
 int
-masscan_app_selftest(void) {
+zorpinvader_app_selftest(void) {
     static const struct {
         unsigned enumid;
         unsigned expected;
