@@ -26,7 +26,8 @@ static int verify_head = 0, verify_tail = 0, verify_count = 0;
 static pthread_mutex_t verify_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t verify_cond = PTHREAD_COND_INITIALIZER;
 
-static uint64_t stats_valid = 0, stats_invalid = 0, stats_pending = 0;
+static uint64_t stats_valid = 0, stats_invalid = 0;
+static int64_t stats_pending = 0;
 static pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static FILE *csv_fp = NULL;
@@ -85,6 +86,8 @@ static void queue_push(const struct VerifyJob *job) {
     if (verify_count >= VERIFY_QUEUE_SIZE) {
         verify_head = (verify_head + 1) % VERIFY_QUEUE_SIZE;
         verify_count--;
+        stats_pending--; /* balance the pending counter */
+        if (stats_pending < 0) stats_pending = 0;
     }
     verify_queue[verify_tail] = *job;
     verify_tail = (verify_tail + 1) % VERIFY_QUEUE_SIZE;
@@ -395,12 +398,7 @@ static int verify_pypi(const char *key) {
 static int verify_mailgun(const char *key) {
     return http_status_basic("https://api.mailgun.net/v3/domains", "api", key) == 200;
 }
-static int verify_tiktok(const char *key) {
-    char auth[512]; snprintf(auth, sizeof(auth), "Bearer %s", key);
-    const char *h[] = {auth, NULL};
-    int s = http_status("https://open.tiktokapis.com/v2/oauth/token/", "POST", h);
-    return (s == 200 || s == 400) ? 1 : 0;
-}
+static int verify_tiktok(const char *key) { (void)key; return -1; /* unverifiable, many false positives */ }
 static int verify_aws(const char *key) { (void)key; return -1; }
 static int verify_databricks(const char *key) { (void)key; return -1; }
 static int verify_skip(const char *key) { (void)key; return -1; }
@@ -453,7 +451,7 @@ static void *verifier_worker(void *arg) {
     while (running || verify_count > 0) {
         if (!queue_pop(&job)) break;
         
-        pthread_mutex_lock(&stats_mutex); stats_pending--; pthread_mutex_unlock(&stats_mutex);
+        pthread_mutex_lock(&stats_mutex); if (stats_pending > 0) stats_pending--; pthread_mutex_unlock(&stats_mutex);
         verify_fn_t fn = find_verifier(job.category);
         if (!fn) fn = find_verifier(job.provider);
         int result = fn ? fn(job.key) : 1;
@@ -520,4 +518,4 @@ void verifier_submit(const char *ip, const char *key, const char *provider, cons
 
 uint64_t verifier_stats_valid(void) { pthread_mutex_lock(&stats_mutex); uint64_t v = stats_valid; pthread_mutex_unlock(&stats_mutex); return v; }
 uint64_t verifier_stats_invalid(void) { pthread_mutex_lock(&stats_mutex); uint64_t v = stats_invalid; pthread_mutex_unlock(&stats_mutex); return v; }
-uint64_t verifier_stats_pending(void) { pthread_mutex_lock(&stats_mutex); uint64_t v = stats_pending; pthread_mutex_unlock(&stats_mutex); return v; }
+int64_t verifier_stats_pending(void) { pthread_mutex_lock(&stats_mutex); int64_t v = stats_pending; pthread_mutex_unlock(&stats_mutex); return v < 0 ? 0 : v; }
