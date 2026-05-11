@@ -203,16 +203,15 @@ static int verify_github(const char *key) {
 static int verify_stripe(const char *key) {
     char auth[512]; snprintf(auth, sizeof(auth), "Authorization: Bearer %s", key);
     const char *h[] = {auth, NULL};
-    /* pk_live_* keys get 401 with "secret_key_required" which confirms they exist */
     char *body = http_body("https://api.stripe.com/v1/account", h, 1024);
     int valid = 0;
     if (body) {
-        if (strstr(body, "secret_key_required") || strstr(body, "invalid_api_key"))
-            valid = 1; /* key exists but wrong type */
-        else if (strstr(body, "\x22object\x22")) valid = 1;
+        if (strstr(body, "secret_key_required"))
             valid = 1;
-        else if (strstr(body, "secret_key_required") || strstr(body, "invalid_api_key"))
-            valid = 1; /* key exists but wrong type/invalid */
+        else if (strstr(body, "invalid_api_key"))
+            valid = 1;
+        else if (strstr(body, "\"object\""))
+            valid = 1;
     }
     free(body);
     return valid;
