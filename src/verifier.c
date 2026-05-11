@@ -203,7 +203,17 @@ static int verify_github(const char *key) {
 static int verify_stripe(const char *key) {
     char auth[512]; snprintf(auth, sizeof(auth), "Authorization: Bearer %s", key);
     const char *h[] = {auth, NULL};
-    return http_status("https://api.stripe.com/v1/charges?limit=1", "GET", h) == 200;
+    /* pk_live_* keys get 401 with "secret_key_required" which confirms they exist */
+    char *body = http_body("https://api.stripe.com/v1/account", h, 1024);
+    int valid = 0;
+    if (body) {
+        if (strstr(body, ""object":") && !strstr(body, ""type":"invalid_request_error""))
+            valid = 1;
+        else if (strstr(body, "secret_key_required") || strstr(body, "invalid_api_key"))
+            valid = 1; /* key exists but wrong type/invalid */
+    }
+    free(body);
+    return valid;
 }
 static int verify_slack(const char *key) {
     char auth[512]; snprintf(auth, sizeof(auth), "Authorization: Bearer %s", key);
