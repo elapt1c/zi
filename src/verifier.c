@@ -128,6 +128,19 @@ static int http_status_basic(const char *url, const char *user, const char *pass
 }
 
 static int http_status(const char *url, const char *method, const char **headers) {
+    char escaped_url[2048]; int ei = 0;
+    for (int ui = 0; url[ui] && ei < 2046; ui++) {
+        unsigned char c = url[ui];
+        if (c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']' ||
+            c == '&' || c == ';' || c == '|' || c == '<' || c == '>' || c == ' ' ||
+            c == '$' || c == '`' || c == '"') {
+            ei += snprintf(escaped_url + ei, 4, "%%%02X", c);
+        } else {
+            escaped_url[ei++] = c;
+        }
+    }
+    escaped_url[ei] = 0;
+
     char cmd[4096];
     snprintf(cmd, sizeof(cmd), "%s -s -o /dev/null -w '%%{http_code}' -m 10 --connect-timeout 5", curl_path);
     if (method && strcmp(method, "GET") != 0) {
@@ -157,6 +170,19 @@ static int http_status(const char *url, const char *method, const char **headers
 }
 
 static char *http_body(const char *url, const char **headers, int max_body) {
+    char escaped_url[2048]; int ei = 0;
+    for (int ui = 0; url[ui] && ei < 2046; ui++) {
+        unsigned char c = url[ui];
+        if (c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']' ||
+            c == '&' || c == ';' || c == '|' || c == '<' || c == '>' || c == ' ' ||
+            c == '$' || c == '`' || c == '"') {
+            ei += snprintf(escaped_url + ei, 4, "%%%02X", c);
+        } else {
+            escaped_url[ei++] = c;
+        }
+    }
+    escaped_url[ei] = 0;
+
     char cmd[4096];
     snprintf(cmd, sizeof(cmd), "%s -s -m 10 --connect-timeout 5", curl_path);
     if (headers) {

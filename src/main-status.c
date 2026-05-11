@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "main-status.h"
 #include "pixie-timer.h"
 #include "unusedparm.h"
@@ -52,6 +53,19 @@ void status_print(
         kpps, percent_done,
         (unsigned)(time_remaining/3600), (unsigned)(time_remaining/60)%60, (unsigned)(time_remaining)%60,
         total_synacks);
+
+    /* Watchdog: if ETA is 0 but we're not done, scanner is frozen */
+    static int eta_zero_count = 0;
+    if (time_remaining <= 0 && !is_tx_done && kpps > 0.01 && total_synacks > 100) {
+        eta_zero_count++;
+        if (eta_zero_count >= 5) { /* ~5 seconds of frozen ETA */
+            fprintf(stderr, "\x1b[20;1H\x1b[41;37m[WATCHDOG] Scanner frozen, exiting for restart\x1b[0m\n");
+            fflush(stderr);
+            _exit(42); /* special exit code for watchdog to catch */
+        }
+    } else {
+        eta_zero_count = 0;
+    }
 
     fprintf(stderr, "\x1b[3;1H\x1b[2K\x1b[37m--------------------------------------------------------------------------------\x1b[0m\n");
     fprintf(stderr, "\x1b[4;1H\x1b[2K\x1b[35m[  KEY SCAN LOG  ]\x1b[0m\n");
