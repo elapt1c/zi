@@ -50,7 +50,8 @@ static const char *safe_casestrn(const unsigned char *haystack, size_t hlen, con
     return NULL;
 }
 
-#define QSIZE 32768
+#define QSIZE 8192
+#define FETCHER_THROTTLE_THRESHOLD 4096
 #define FETCHER_THROTTLE_THRESHOLD 10000 /* slow SYN scan if fetcher queue exceeds this */
 struct Job { char ip[64]; unsigned port; };
 static struct Job q[QSIZE];
@@ -212,7 +213,7 @@ void fetcher_init(void) {
     int nc=sysconf(_SC_NPROCESSORS_ONLN);
     if (nc<1) nc=4;
     int tpc = configured_tpc ? configured_tpc : 16;
-    nthreads=nc*tpc; if (nthreads>256) nthreads=256;
+    nthreads=nc*tpc; if (nthreads>32) nthreads=32; /* cap to avoid curl fork bomb */
     thr=malloc(sizeof(pthread_t)*nthreads);
     running=1;
     for (int i=0;i<nthreads;i++) pthread_create(&thr[i],NULL,worker,NULL);

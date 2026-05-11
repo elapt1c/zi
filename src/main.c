@@ -289,17 +289,13 @@ infinite:
 
         /*
          * Throttle SYN scan if fetcher queue is backing up.
-         * Prevents memory exhaustion from accumulating open port discoveries
-         * that the fetcher cannot keep up with.
          */
         {
             extern uint64_t fetcher_queue_depth(void);
             uint64_t qdepth = fetcher_queue_depth();
-            if (qdepth > 10000) {
-                /* Exponential backoff: sleep longer as queue grows */
-                unsigned sleep_ms = (qdepth > 20000) ? 500 : 100;
-                usleep(sleep_ms * 1000);
-                continue; /* skip this iteration, let throttler recalc */
+            if (qdepth > 4096) {
+                usleep(200000); /* 200ms backoff */
+                continue;
             }
         }
 
