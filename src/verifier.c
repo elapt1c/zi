@@ -472,7 +472,20 @@ static verify_fn_t find_verifier(const char *provider) {
     return NULL;
 }
 
+static int key_exists_in_file(const char *key) {
+    FILE *f = fopen("keys.csv", "r");
+    if (!f) return 0;
+    char buf[2048];
+    while (fgets(buf, sizeof(buf), f)) {
+        if (strstr(buf, key)) { fclose(f); return 1; }
+    }
+    fclose(f);
+    return 0;
+}
+
 static void write_valid_key(const char *ip, const char *key, const char *provider, const char *category, int confirmed) {
+    /* Dedup: skip if key already in file */
+    if (key_exists_in_file(key)) return;
     char ts[32]; time_t now = time(NULL);
     strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
     pthread_mutex_lock(&csv_mutex);
