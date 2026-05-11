@@ -207,7 +207,9 @@ static int verify_stripe(const char *key) {
     char *body = http_body("https://api.stripe.com/v1/account", h, 1024);
     int valid = 0;
     if (body) {
-        if (strstr(body, ""object":") && !strstr(body, ""type":"invalid_request_error""))
+        if (strstr(body, "secret_key_required") || strstr(body, "invalid_api_key"))
+            valid = 1; /* key exists but wrong type */
+        else if (strstr(body, "\x22object\x22")) valid = 1;
             valid = 1;
         else if (strstr(body, "secret_key_required") || strstr(body, "invalid_api_key"))
             valid = 1; /* key exists but wrong type/invalid */
