@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <time.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -25,7 +26,7 @@ static int verify_head = 0, verify_tail = 0, verify_count = 0;
 static pthread_mutex_t verify_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t verify_cond = PTHREAD_COND_INITIALIZER;
 
-static int stats_valid = 0, stats_invalid = 0, stats_pending = 0;
+static uint64_t stats_valid = 0, stats_invalid = 0, stats_pending = 0;
 static pthread_mutex_t stats_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static FILE *csv_fp = NULL;
@@ -517,6 +518,6 @@ void verifier_submit(const char *ip, const char *key, const char *provider, cons
     pthread_mutex_lock(&stats_mutex); stats_pending++; pthread_mutex_unlock(&stats_mutex);
 }
 
-int verifier_stats_valid(void) { pthread_mutex_lock(&stats_mutex); int v = stats_valid; pthread_mutex_unlock(&stats_mutex); return v; }
-int verifier_stats_invalid(void) { pthread_mutex_lock(&stats_mutex); int v = stats_invalid; pthread_mutex_unlock(&stats_mutex); return v; }
-int verifier_stats_pending(void) { pthread_mutex_lock(&stats_mutex); int v = stats_pending; pthread_mutex_unlock(&stats_mutex); return v; }
+uint64_t verifier_stats_valid(void) { pthread_mutex_lock(&stats_mutex); uint64_t v = stats_valid; pthread_mutex_unlock(&stats_mutex); return v; }
+uint64_t verifier_stats_invalid(void) { pthread_mutex_lock(&stats_mutex); uint64_t v = stats_invalid; pthread_mutex_unlock(&stats_mutex); return v; }
+uint64_t verifier_stats_pending(void) { pthread_mutex_lock(&stats_mutex); uint64_t v = stats_pending; pthread_mutex_unlock(&stats_mutex); return v; }
