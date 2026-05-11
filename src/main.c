@@ -73,6 +73,7 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
 #include <sys/wait.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -227,7 +228,7 @@ transmit_thread(void *v) /*aka. scanning_thread() */
     struct Throttler *throttler = parms->throttler;
     struct TemplateSet pkt_template = templ_copy(parms->tmplset);
     struct Adapter *adapter = parms->adapter;
-    uint64_t packets_sent = 0;
+    uint64_t packets_sent = (uint64_t)rand() << 32 | (uint64_t)rand(); /* random start position */
     unsigned increment = zorp->shard.of * zorp->nic_count;
     struct source_t src;
     uint64_t seed = zorp->seed;

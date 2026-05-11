@@ -20,11 +20,13 @@ while true; do
     while kill -0 $ZPID 2>/dev/null; do
         sleep 1
 
-        # Read from status file
         ETA_LINE=$(cat /tmp/zorp_status 2>/dev/null)
+
+        # Check if ETA is frozen (00:00:00 or 4+ digit hours)
         if echo "$ETA_LINE" | grep -qE "ETA: 00:00:00|ETA: [0-9]{4,}:"; then
             ZERO_COUNT=$((ZERO_COUNT + 1))
         else
+            # ETA is normal, reset counter
             ZERO_COUNT=0
         fi
 
