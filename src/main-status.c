@@ -60,8 +60,10 @@ void status_print(
     int key_log_ptr;
     verifier_get_key_scan_log(key_log_buf, &key_log_ptr);
 
+    /* Show the last 10 entries (most recent at bottom) */
+    int start = (key_log_ptr + 12 - 10) % 12;
     for (int i=0; i<10; i++) {
-        int k_idx = (key_log_ptr + i) % 12;
+        int k_idx = (start + i) % 12;
         const char *entry = key_log_buf[k_idx];
         const char *color = "\x1b[37m";
         if (strstr(entry, "[CONFIRMED]")) color = "\x1b[32m";
