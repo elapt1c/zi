@@ -82,6 +82,17 @@ void status_print(
 
     fflush(stderr);
 
+    /* Write raw status to file for external watchdog */
+    {
+        FILE *sf = fopen("/tmp/zorp_status", "w");
+        if (sf) {
+            fprintf(sf, "ETA: %02u:%02u:%02u Found: %lu\n",
+                (unsigned)(time_remaining/3600), (unsigned)(time_remaining/60)%60, (unsigned)(time_remaining)%60,
+                total_synacks);
+            fclose(sf);
+        }
+    }
+
     status->last.clock = now;
     status->last.count = count;
 }
